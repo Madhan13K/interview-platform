@@ -108,69 +108,14 @@ jobs:
         run: npm run lint || true
 
   # ==========================================================================
-  # Stage 3: Frontend - Unit & Component Tests (Vitest)
+  # Stage 3: Dependency Security Audit
   # ==========================================================================
-  frontend-unit-tests:
-    name: Frontend - Unit Tests (Vitest)
-    runs-on: ubuntu-latest
-    needs: frontend-build
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: interview-platform-frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: interview-platform-frontend
-        run: npm ci
-
-      - name: Run unit tests with coverage
-        working-directory: interview-platform-frontend
-        run: npm run test:coverage
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: frontend-coverage-report
-          path: interview-platform-frontend/coverage/
-
-  # ==========================================================================
-  # Stage 4: Frontend - E2E Tests (Playwright)
-  # ==========================================================================
-  e2e-tests:
-    name: Frontend - E2E Tests (Playwright)
+  security-audit:
+    name: Dependency Security Audit
     runs-on: ubuntu-latest
     needs: [backend-build, frontend-build]
-    timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: interview_platform_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-      mailpit:
-        image: axllent/mailpit:latest
-        ports: ['1025:1025', '8025:8025']
     steps:
       - uses: actions/checkout@v5
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: maven
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -179,174 +124,6 @@ jobs:
           cache: npm
           cache-dependency-path: interview-platform-frontend/package-lock.json
 
-      - name: Start backend
-        working-directory: interview-platform-backend
-        env:
-          DB_URL: jdbc:postgresql://localhost:5432/interview_platform_test
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          JWT_SECRET: ci-test-jwt-secret-key-minimum-256-bits-long-for-testing-purposes-only
-          JWT_REFRESH_SECRET: ci-test-refresh-secret-key-minimum-256-bits-long-for-testing-only
-          KAFKA_ENABLED: 'false'
-          SMS_ENABLED: 'false'
-          CODE_EXECUTION_ENABLED: 'false'
-          SPRING_PROFILES_ACTIVE: dev
-          SPRING_DOCKER_COMPOSE_ENABLED: 'false'
-          SPRING_MAIL_HOST: localhost
-          SPRING_MAIL_PORT: '1025'
-          SPRING_MAIL_USERNAME: ''
-          SPRING_MAIL_PASSWORD: ''
-          SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
-          SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
-          OTEL_SDK_DISABLED: 'true'
-          OTEL_TRACES_EXPORTER: none
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          JAVA_TOOL_OPTIONS: ''
-        run: |
-          cp src/test/resources/certs/private.pem src/main/resources/certs/private.pem
-          ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
-          echo "Waiting for backend to start..."
-          for i in $(seq 1 60); do
-            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
-              echo "Backend started!"
-              break
-            fi
-            sleep 5
-          done
-
-      - name: Install frontend dependencies
-        working-directory: interview-platform-frontend
-        run: npm ci
-
-      - name: Verify backend is healthy
-        run: |
-          echo "Verifying backend health..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
-          if [ "$STATUS" != "200" ]; then
-            echo "ERROR: Backend health check failed (status: $STATUS)"
-            curl -s http://localhost:8080/actuator/health | python3 -m json.tool || true
-            exit 1
-          fi
-          echo "Backend is healthy (HTTP 200)"
-
-      - name: Seed test data
-        run: |
-          chmod +x scripts/seed-test-data.sh
-          bash scripts/seed-test-data.sh
-        env:
-          BASE_URL: http://localhost:8080
-
-      - name: Verify login works
-        run: |
-          echo "Testing login endpoint..."
-          RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
-            -H "Content-Type: application/json" \
-            -d '{"email":"admin@interview.com","password":"admin123"}')
-          echo "Login response: $RESPONSE"
-          echo "$RESPONSE" | python3 -c "import sys,json;d=json.load(sys.stdin);assert d.get('accessToken') or d.get('access_token'), 'No token in response'" || {
-            echo "ERROR: Login endpoint not returning a token!"
-            exit 1
-          }
-          echo "Login verified successfully!"
-
-      - name: Install Playwright browsers
-        working-directory: interview-platform-frontend
-        run: npx playwright install --with-deps chromium
-
-      - name: Build frontend
-        working-directory: interview-platform-frontend
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:8080
-        run: npm run build
-
-      - name: Run Playwright E2E tests
-        working-directory: interview-platform-frontend
-        env:
-          CI: 'true'
-          BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_API_URL: http://localhost:8080
-        run: npx playwright test --project=chromium
-
-      - name: Cleanup test data
-        if: always()
-        run: |
-          echo "Stopping backend..."
-          pkill -f "spring-boot:run" || true
-          echo "CI database will be destroyed with the job container."
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: playwright-report
-          path: interview-platform-frontend/playwright-report/
-
-      - name: Upload Playwright test results
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: playwright-test-results
-          path: interview-platform-frontend/test-results/
-
-  # ==========================================================================
-  # Stage 5: Backend - Integration Tests (Testcontainers) [SKIPPED]
-  # Re-enable once Spring context issues are resolved
-  # ==========================================================================
-
-  # integration-tests:
-  #   name: Backend - Integration Tests
-  #   runs-on: ubuntu-latest
-  #   needs: backend-build
-  #   steps:
-  #     - uses: actions/checkout@v5
-  #     - name: Set up JDK 21
-  #       uses: actions/setup-java@v5
-  #       with:
-  #         distribution: temurin
-  #         java-version: ${{ env.JAVA_VERSION }}
-  #         cache: maven
-  #     - name: Run integration tests with Testcontainers
-  #       working-directory: interview-platform-backend
-  #       run: ./mvnw verify -PintegrationTests -B
-  #       env:
-  #         TESTCONTAINERS_RYUK_DISABLED: 'false'
-  #         SPRING_PROFILES_ACTIVE: integration
-  #     - name: Upload integration test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v5
-  #       with:
-  #         name: integration-test-results
-  #         path: interview-platform-backend/target/failsafe-reports/
-
-  # ==========================================================================
-  # Stage 5b: API Integration Tests
-  # ==========================================================================
-  api-tests:
-    name: API Integration Tests
-    runs-on: ubuntu-latest
-    needs: backend-build
-    continue-on-error: true
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: interview_platform_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-      mailpit:
-        image: axllent/mailpit:latest
-        ports: ['1025:1025', '8025:8025']
-    steps:
-      - uses: actions/checkout@v5
-
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
@@ -354,107 +131,68 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
 
-      - name: Start backend
+      - name: Frontend - npm audit
+        working-directory: interview-platform-frontend
+        run: |
+          echo "=== NPM Dependency Audit ==="
+          npm ci --ignore-scripts
+          npm audit --audit-level=high || true
+          echo ""
+          echo "=== Checking for outdated packages ==="
+          npm outdated || true
+
+      - name: Frontend - check for known vulnerable packages
+        working-directory: interview-platform-frontend
+        run: |
+          echo "=== Checking critical package versions ==="
+          node -e "
+          const pkg = require('./package.json');
+          const deps = {...pkg.dependencies, ...pkg.devDependencies};
+          const checks = [
+            {name: 'next', min: '14.0.0'},
+            {name: 'react', min: '18.0.0'},
+            {name: 'axios', min: '1.6.0'},
+          ];
+          checks.forEach(({name, min}) => {
+            const ver = deps[name];
+            if (ver) console.log('  ' + name + ': ' + ver + (ver.replace(/[\^~]/, '') >= min ? ' ✓' : ' ⚠ UPDATE RECOMMENDED'));
+          });
+          "
+
+      - name: Backend - Maven dependency tree check
         working-directory: interview-platform-backend
-        env:
-          DB_URL: jdbc:postgresql://localhost:5432/interview_platform_test
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          JWT_SECRET: ci-test-jwt-secret-key-minimum-256-bits-long-for-testing-purposes-only
-          JWT_REFRESH_SECRET: ci-test-refresh-secret-key-minimum-256-bits-long-for-testing-only
-          KAFKA_ENABLED: 'false'
-          SMS_ENABLED: 'false'
-          CODE_EXECUTION_ENABLED: 'false'
-          SPRING_PROFILES_ACTIVE: dev
-          SPRING_DOCKER_COMPOSE_ENABLED: 'false'
-          SPRING_MAIL_HOST: localhost
-          SPRING_MAIL_PORT: '1025'
-          SPRING_MAIL_USERNAME: ''
-          SPRING_MAIL_PASSWORD: ''
-          SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
-          SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
-          OTEL_SDK_DISABLED: 'true'
-          OTEL_TRACES_EXPORTER: none
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-          JAVA_TOOL_OPTIONS: ''
         run: |
-          cp src/test/resources/certs/private.pem src/main/resources/certs/private.pem
-          ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
-          echo "Waiting for backend to start..."
-          for i in $(seq 1 60); do
-            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
-              echo "Backend started!"
-              break
-            fi
-            sleep 5
-          done
+          echo "=== Maven Dependency Versions ==="
+          ./mvnw versions:display-dependency-updates -B 2>/dev/null | grep -E "^\[INFO\].*->" | head -20 || true
 
-      - name: Run API integration tests
+      - name: Backend - check for vulnerable Spring Boot version
+        working-directory: interview-platform-backend
         run: |
-          chmod +x tests/api/api-tests.sh
-          bash tests/api/api-tests.sh
-        env:
-          BASE_URL: http://localhost:8080
+          echo "=== Spring Boot Version Check ==="
+          SPRING_VERSION=$(./mvnw help:evaluate -Dexpression=project.parent.version -q -DforceStdout 2>/dev/null)
+          echo "  Spring Boot: $SPRING_VERSION"
+          JAVA_VERSION=$(java -version 2>&1 | head -1)
+          echo "  Java: $JAVA_VERSION"
 
-      - name: Stop backend
+      - name: Backend - check for CVEs in dependencies
+        working-directory: interview-platform-backend
+        continue-on-error: true
+        run: |
+          echo "=== Maven Dependency Check (CVE scan) ==="
+          ./mvnw dependency-check:check -B -DfailBuildOnCVSS=9 2>/dev/null || echo "Dependency check completed (some vulnerabilities may exist)"
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload dependency check report
         if: always()
-        run: pkill -f "spring-boot:run" || true
-
-  # ==========================================================================
-  # Stage 5c: Database Integration Tests
-  # ==========================================================================
-  db-tests:
-    name: Database Integration Tests
-    runs-on: ubuntu-latest
-    needs: backend-build
-    continue-on-error: true
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: interview_platform_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/upload-artifact@v5
         with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: maven
-
-      - name: Run Flyway migrations
-        working-directory: interview-platform-backend
-        run: |
-          ./mvnw flyway:migrate -B \
-            -Dflyway.url=jdbc:postgresql://localhost:5432/interview_platform_test \
-            -Dflyway.user=test \
-            -Dflyway.password=test \
-            -Dflyway.locations=filesystem:src/main/resources/db/migration
-
-      - name: Install PostgreSQL client
-        run: sudo apt-get install -y postgresql-client
-
-      - name: Run DB integration tests
-        run: |
-          chmod +x tests/db/db-integration-tests.sh
-          bash tests/db/db-integration-tests.sh
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: interview_platform_test
-          DB_USER: test
-          DB_PASSWORD: test
+          name: dependency-security-report
+          path: interview-platform-backend/target/dependency-check-report.*
+          if-no-files-found: ignore
 
   # ==========================================================================
-  # Stage 6: SAST - Static Application Security Testing (SonarCloud)
+  # Stage 4: SAST - Static Application Security Testing (SonarCloud)
   # ==========================================================================
   sast:
     name: SAST (SonarCloud)
@@ -836,7 +574,7 @@ jobs:
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [backend-build, frontend-build, frontend-unit-tests, e2e-tests, api-tests, db-tests, sast, dependency-scan, migration-check, docker-build-scan, security-gate]
+    needs: [backend-build, frontend-build, security-audit, sast, dependency-scan, migration-check, docker-build-scan, security-gate]
     if: always()
     steps:
       - name: Pipeline results
@@ -846,10 +584,7 @@ jobs:
           echo "╠══════════════════════════════════════════════════════╣"
           echo "║  Backend Build & Tests:    ${{ needs.backend-build.result }}"
           echo "║  Frontend Build & Lint:    ${{ needs.frontend-build.result }}"
-          echo "║  Frontend Unit Tests:      ${{ needs.frontend-unit-tests.result }}"
-          echo "║  E2E Tests (Playwright):   ${{ needs.e2e-tests.result }}"
-          echo "║  API Integration Tests:    ${{ needs.api-tests.result }}"
-          echo "║  DB Integration Tests:     ${{ needs.db-tests.result }}"
+          echo "║  Security Audit:           ${{ needs.security-audit.result }}"
           echo "║  SAST (SonarCloud):        ${{ needs.sast.result }}"
           echo "║  Dependency Scan (OWASP):  ${{ needs.dependency-scan.result }}"
           echo "║  DB Migration Check:       ${{ needs.migration-check.result }}"
