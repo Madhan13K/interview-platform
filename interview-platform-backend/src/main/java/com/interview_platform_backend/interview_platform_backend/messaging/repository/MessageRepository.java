@@ -17,8 +17,8 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     List<Message> findByParentMessageIdOrderByCreatedAtAsc(UUID parentMessageId);
 
-    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :conversationId AND m.createdAt > " +
-           "(SELECT COALESCE(r.lastReadAt, TIMESTAMP '1970-01-01') FROM MessageReadReceipt r " +
-           "WHERE r.conversationId = :conversationId AND r.userId = :userId)")
+    @Query(value = "SELECT COUNT(m.*) FROM messages m WHERE m.conversation_id = :conversationId AND m.created_at > " +
+           "(SELECT COALESCE(r.last_read_at, TIMESTAMP '1970-01-01') FROM message_read_receipts r " +
+           "WHERE r.conversation_id = :conversationId AND r.user_id = :userId)", nativeQuery = true)
     long countUnreadMessages(@Param("conversationId") UUID conversationId, @Param("userId") UUID userId);
 }
