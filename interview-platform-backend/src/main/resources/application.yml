@@ -258,6 +258,8 @@ app:
       alerts-enabled: ${LOCKOUT_ALERTS_ENABLED:true}
       alert-threshold: ${LOCKOUT_ALERT_THRESHOLD:3}
       ip-blocking-enabled: ${LOCKOUT_IP_BLOCKING:true}
+    rsa:
+      from-vault: ${RSA_FROM_VAULT:false}
   encryption:
     enabled: ${ENCRYPTION_ENABLED:true}
     secret-key: ${ENCRYPTION_SECRET_KEY:}
@@ -270,9 +272,7 @@ app:
       url: ${DB_DDL_URL:${DB_URL:jdbc:postgresql://localhost:5433/interview_platform}}
       username: ${DB_DDL_USERNAME:admin}
       password: ${DB_DDL_PASSWORD:postgres}
-  security:
-    rsa:
-      from-vault: ${RSA_FROM_VAULT:false}
+
   # --- Data Retention ---
   retention:
     enabled: ${DATA_RETENTION_ENABLED:false}
