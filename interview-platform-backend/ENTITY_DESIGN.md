@@ -1561,3 +1561,142 @@ Indexes: 14 new indexes for performance on common query patterns.
 | V29 | DEI demographic profiles |
 | V30 | Candidate source tracking |
 
+### Migrations V31-V33 (Newly Added)
+
+| Version | Description |
+|---------|-------------|
+| V31 | Messaging system (conversations, messages, message_read_receipts) + IP whitelist |
+| V32 | Comprehensive test data seed (users, jobs, interviews, feedback, questions, tags) |
+| V33 | Billing system (subscription_plans, organization_subscriptions, payment_transactions, invoices) + default plan seed |
+
+---
+
+## New Entity Domains (Phase 9-14)
+
+### MESSAGING DOMAIN
+
+```
+┌──────────────────┐     ┌──────────────────────────┐
+│  Conversation    │────▶│ conversation_participants │
+│──────────────────│     │──────────────────────────│
+│ id: UUID         │     │ conversation_id (FK)     │
+│ title            │     │ user_id (FK → users)     │
+│ type (DIRECT/    │     └──────────────────────────┘
+│       GROUP)     │
+│ created_at       │     ┌──────────────────┐
+│ updated_at       │────▶│     Message      │
+└──────────────────┘     │──────────────────│
+                         │ id: UUID         │
+                         │ conversation_id  │
+                         │ sender_id (FK)   │
+                         │ content (TEXT)   │
+                         │ type (TEXT/FILE/ │
+                         │       SYSTEM)    │
+                         │ parent_message_id│ ← Threaded replies
+                         │ is_edited        │
+                         │ created_at       │
+                         └──────────────────┘
+
+┌─────────────────────────┐
+│  MessageReadReceipt     │
+│─────────────────────────│
+│ id: UUID                │
+│ conversation_id         │
+│ user_id                 │
+│ last_read_message_id    │
+│ last_read_at            │
+│ UQ(conversation, user)  │
+└─────────────────────────┘
+```
+
+### BILLING DOMAIN
+
+```
+┌──────────────────────┐       ┌───────────────────────────┐
+│  SubscriptionPlan    │◀──────│ OrganizationSubscription  │
+│──────────────────────│       │───────────────────────────│
+│ id: UUID             │       │ id: UUID                  │
+│ slug (UQ)            │       │ organization_id           │
+│ name                 │       │ plan_id (FK)              │
+│ price_monthly_usd    │       │ status (TRIALING/ACTIVE/  │
+│ price_monthly_inr    │       │   PAST_DUE/CANCELLED)     │
+│ price_yearly_usd     │       │ billing_cycle (MONTHLY/   │
+│ price_yearly_inr     │       │   YEARLY)                 │
+│ max_users            │       │ payment_gateway (STRIPE/  │
+│ max_interviews       │       │   RAZORPAY/PAYU/CASHFREE/ │
+│ max_job_positions    │       │   PHONEPE)                │
+│ max_storage_gb       │       │ gateway_subscription_id   │
+│ ai_features_enabled  │       │ gateway_customer_id       │
+│ sso_enabled          │       │ amount                    │
+│ api_access_enabled   │       │ currency (USD/INR/EUR)    │
+│ custom_branding      │       │ current_period_start      │
+│ priority_support     │       │ current_period_end        │
+│ is_active            │       │ trial_ends_at             │
+│ sort_order           │       │ cancelled_at              │
+└──────────────────────┘       └───────────────────────────┘
+
+┌───────────────────────────┐   ┌──────────────────┐
+│   PaymentTransaction      │   │     Invoice      │
+│───────────────────────────│   │──────────────────│
+│ id: UUID                  │   │ id: UUID         │
+│ organization_id           │   │ invoice_number   │
+│ subscription_id           │   │ organization_id  │
+│ gateway (STRIPE/RAZORPAY/ │   │ subscription_id  │
+│   PAYU/CASHFREE/PHONEPE)  │   │ amount           │
+│ gateway_payment_id        │   │ tax_amount (GST) │
+│ gateway_order_id          │   │ total_amount     │
+│ amount                    │   │ currency         │
+│ currency                  │   │ status (DRAFT/   │
+│ status (PENDING/CAPTURED/ │   │   OPEN/PAID/VOID)│
+│   AUTHORIZED/FAILED/      │   │ due_date         │
+│   REFUNDED)               │   │ paid_at          │
+│ transaction_type          │   │ pdf_url          │
+│ payment_method            │   │ gstin            │
+│ failure_reason            │   └──────────────────┘
+│ created_at                │
+└───────────────────────────┘
+```
+
+### IP WHITELIST DOMAIN
+
+```
+┌──────────────────────┐
+│   IpWhitelistEntry   │
+│──────────────────────│
+│ id: UUID             │
+│ organization_id      │
+│ ip_address (CIDR)    │  ← Supports 192.168.1.0/24
+│ description          │
+│ created_by           │
+│ is_active            │
+│ created_at           │
+│ UQ(org, ip_address)  │
+└──────────────────────┘
+```
+
+---
+
+## Entity Relationships (New)
+
+| Relationship | Cardinality | FK Column |
+|-------------|-------------|-----------|
+| Conversation → Message | 1:N | conversation_id |
+| Conversation → User (participants) | M:N | conversation_participants |
+| Message → User (sender) | N:1 | sender_id |
+| Message → Message (thread) | Self-ref | parent_message_id |
+| SubscriptionPlan → OrganizationSubscription | 1:N | plan_id |
+| OrganizationSubscription → PaymentTransaction | 1:N | subscription_id |
+| OrganizationSubscription → Invoice | 1:N | subscription_id |
+| IpWhitelistEntry → Organization | N:1 | organization_id |
+
+---
+
+## Default Subscription Plans (Seeded by V33)
+
+| Slug | Name | Monthly USD | Monthly INR | Max Users | AI | SSO |
+|------|------|------------|------------|-----------|-----|-----|
+| `free` | Free | $0 | ₹0 | 3 | No | No |
+| `starter` | Starter | $49 | ₹3,999 | 10 | No | No |
+| `professional` | Professional | $149 | ₹11,999 | 50 | Yes | Yes |
+| `enterprise` | Enterprise | $399 | ₹32,999 | Unlimited | Yes | Yes |
+

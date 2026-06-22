@@ -3303,3 +3303,185 @@ Interactive API docs available at:
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
+
+---
+
+## 49. AI Interview Coach
+
+```bash
+# Get real-time coaching suggestions during interview
+curl -X POST $BASE/ai/coach/suggest \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "recentTranscript": "Candidate: I used microservices with Kafka for event-driven architecture...",
+    "jobTitle": "Senior Backend Engineer",
+    "competencies": ["system-design", "leadership", "problem-solving"],
+    "elapsedMinutes": 25,
+    "totalMinutes": 60
+  }'
+# Response: { followUpQuestions: [...], biasAlerts: [], timeAlert: null }
+
+# Track competency coverage
+curl -X POST $BASE/ai/coach/coverage \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"transcript": "full interview transcript...", "requiredCompetencies": ["system-design","coding","leadership"]}'
+```
+
+## 50. Smart Talent Matching
+
+```bash
+# Match candidates to a job position
+curl $BASE/talent-match/job/{jobPositionId}?maxResults=10 -H "$AUTH"
+# Response: [{ candidateId, name, email, overallScore: 0.85, scoreBreakdown: {skills: 0.9, experience: 0.8, historicalFit: 0.7}, matchReason: "Strong skill alignment" }]
+
+# Match jobs to a candidate
+curl $BASE/talent-match/candidate/{candidateId}?maxResults=5 -H "$AUTH"
+```
+
+## 51. Automated Screening Bot
+
+```bash
+# Generate screening questions
+curl -X POST $BASE/screening/questions \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"jobTitle":"React Developer","requirements":"React, TypeScript, 3+ years","questionCount":5}'
+# Response: { questions: [{ id, text, type: "TEXT|NUMBER|YES_NO|DATE", required: true }] }
+
+# Evaluate responses
+curl -X POST $BASE/screening/evaluate \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "jobTitle": "React Developer",
+    "requirements": "React, TypeScript",
+    "responses": [
+      {"question": "Years of experience?", "answer": "5 years with React"},
+      {"question": "Why this role?", "answer": "I love building great UIs and your product excites me"}
+    ]
+  }'
+# Response: { score: 8, recommendation: "PASS", strengths: [...], concerns: [...], summary: "..." }
+```
+
+## 52. Sentiment Analysis
+
+```bash
+# Analyze single text
+curl -X POST $BASE/sentiment/analyze \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"text": "I am really excited about this role. I have been passionate about distributed systems for years."}'
+# Response: { sentimentScore: 0.82, engagementScore: 0.7, label: "POSITIVE", details: {positiveWords: 2, confidenceIndicators: 1} }
+
+# Analyze trend across messages
+curl -X POST $BASE/sentiment/trend \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"messages": ["I think I can do this...", "Actually yes, I solved a similar problem at my last company!", "Let me show you exactly how I would architect this."]}'
+# Response: { scores: [0.45, 0.72, 0.88], averageScore: 0.68, trend: "IMPROVING" }
+```
+
+## 53. Compensation Intelligence
+
+```bash
+# Get salary recommendation
+curl "$BASE/compensation/recommend?level=SENIOR&location=Bangalore&department=Engineering&currency=INR" -H "$AUTH"
+# Response: { currency: "INR", recommendedMin: 2500000, recommendedTarget: 3500000, recommendedMax: 5000000, marketMin: 2500000, marketMax: 5000000, internalAverage: 3200000, insights: [...] }
+
+# Assess offer competitiveness
+curl "$BASE/compensation/assess?amount=3000000&level=SENIOR&location=India" -H "$AUTH"
+# Response: { percentile: 62.5, rating: "COMPETITIVE" }
+```
+
+## 54. Attrition Risk Prediction
+
+```bash
+curl $BASE/predictions/attrition/{candidateId} -H "$AUTH"
+# Response: { riskScore: 0.45, riskLevel: "MEDIUM", riskFactors: ["Long process (52 days)", "Salary 8% below expectation"], mitigations: ["Signing bonus", "Strong onboarding"] }
+```
+
+## 55. Difficulty Calibration
+
+```bash
+curl -X POST $BASE/ai/calibrate \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"performanceHistory": [{"difficulty":"MEDIUM","score":0.9,"competency":"algorithms"},{"difficulty":"HARD","score":0.85,"competency":"system-design"},{"difficulty":"HARD","score":0.7,"competency":"coding"}]}'
+# Response: { nextDifficulty: "EXPERT", abilityEstimate: 0.82, reason: "3 consecutive strong answers - stepping up" }
+```
+
+## 56. Multi-Gateway Payments
+
+```bash
+# Create Razorpay order (India)
+curl -X POST $BASE/billing/razorpay/order \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"amount": 11999, "currency": "INR", "description": "Professional Plan"}'
+# Response: { id: "order_xxx", amount: 1199900, currency: "INR", receipt: "rcpt_..." }
+
+# Verify payment signature
+curl -X POST $BASE/billing/razorpay/verify \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"razorpay_order_id":"order_xxx","razorpay_payment_id":"pay_xxx","razorpay_signature":"hmac..."}'
+# Response: { verified: true }
+
+# Get subscription plans
+curl $BASE/billing/plans -H "$AUTH"
+# Response: [{ slug: "free", name: "Free", priceMonthlyInr: 0 }, { slug: "professional", priceMonthlyInr: 11999 }, ...]
+```
+
+## 57. CRDT Collaborative Editing
+
+```bash
+# Get document content
+curl $BASE/crdt/documents/{documentId} -H "$AUTH"
+# Response: { content: "function solve() {...}" }
+
+# Get operation history (for new clients joining)
+curl "$BASE/crdt/documents/{documentId}/history?sinceTimestamp=0" -H "$AUTH"
+
+# Real-time operations happen via WebSocket:
+# Subscribe: /topic/document/{docId}/ops
+# Send: /app/document/{docId}/op  →  { type: "INSERT", charId: "s1-42", character: "x", afterId: "s1-41", siteId: "s1", timestamp: 42 }
+```
+
+## 58. Interview Replay
+
+```bash
+# Get full replay timeline
+curl $BASE/replay/{interviewId}/timeline -H "$AUTH"
+# Response: { startTime, endTime, durationSeconds: 3600, totalEvents: 245, events: [{type:"CODE_CHANGE", timestamp, data:{code,language}}, {type:"WHITEBOARD_STROKE",...}] }
+
+# Get events in time range (for scrubbing)
+curl "$BASE/replay/{interviewId}/range?from=2026-01-01T10:00:00Z&to=2026-01-01T10:30:00Z" -H "$AUTH"
+```
+
+## 59. AI-Powered Scheduling
+
+```bash
+# Get ML-suggested optimal slots
+curl -X POST $BASE/scheduling/ai-suggest \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"interviewerId":"<uuid>","candidateId":"<uuid>","durationMinutes":60,"timeZone":"Asia/Kolkata","maxSuggestions":5}'
+# Response: [{ startTime, endTime, score: 0.92, reason: "Low no-show rate at 10:00; Tuesday has 94% completion rate" }]
+
+# Predict no-show probability
+curl "$BASE/scheduling/no-show-risk?scheduledTime=2026-07-15T10:00:00Z&candidateId=<uuid>" -H "$AUTH"
+# Response: { probability: 0.08 }
+```
+
+## 60. Candidate Sourcing AI
+
+```bash
+# Search GitHub for matching developers
+curl -X POST $BASE/sourcing/github \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"skills":["react","typescript","node"],"location":"India","maxResults":20}'
+# Response: [{ name: "developer123", profileUrl: "https://github.com/...", source: "GITHUB", skills: [...], relevanceScore: 0.85 }]
+
+# Extract skills from job description
+curl -X POST $BASE/sourcing/extract-skills \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"jobDescription":"Looking for a senior engineer with experience in Go, Kubernetes, and distributed systems..."}'
+# Response: { skills: ["go", "kubernetes", "distributed-systems", "docker"] }
+
+# Rank candidates against requirements
+curl -X POST $BASE/sourcing/rank \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"candidates":[...],"requiredSkills":["go","kubernetes"]}'
+```
