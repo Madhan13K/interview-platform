@@ -122,12 +122,12 @@ echo ""
 echo "Checking if server is reachable..."
 
 HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$BASE_URL/actuator/health" 2>/dev/null)
-if [ "$HEALTH_STATUS" = "000" ]; then
-    echo -e "${RED}ERROR: Server at $BASE_URL is not reachable (connection refused)${NC}"
+if [ "$HEALTH_STATUS" != "200" ]; then
+    echo -e "${RED}ERROR: Server at $BASE_URL is not reachable (HTTP $HEALTH_STATUS)${NC}"
     echo "Make sure the backend is running before executing tests."
     exit 1
 fi
-echo -e "${GREEN}Server is up (HTTP $HEALTH_STATUS).${NC}"
+echo -e "${GREEN}Server is up and healthy (HTTP 200).${NC}"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AUTH TESTS

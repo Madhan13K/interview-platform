@@ -159,6 +159,9 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
     steps:
       - uses: actions/checkout@v5
 
@@ -191,6 +194,12 @@ jobs:
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+          SPRING_MAIL_HOST: localhost
+          SPRING_MAIL_PORT: '1025'
+          SPRING_MAIL_USERNAME: ''
+          SPRING_MAIL_PASSWORD: ''
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
           OTEL_SDK_DISABLED: 'true'
           OTEL_TRACES_EXPORTER: none
           OTEL_METRICS_EXPORTER: none
@@ -212,16 +221,16 @@ jobs:
         working-directory: interview-platform-frontend
         run: npm ci
 
-      - name: Verify backend is running
+      - name: Verify backend is healthy
         run: |
-          echo "Verifying backend is responding..."
+          echo "Verifying backend health..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
-          if [ "$STATUS" = "000" ]; then
-            echo "ERROR: Backend is not reachable (connection refused)"
+          if [ "$STATUS" != "200" ]; then
+            echo "ERROR: Backend health check failed (status: $STATUS)"
+            curl -s http://localhost:8080/actuator/health | python3 -m json.tool || true
             exit 1
           fi
-          echo "Backend is responding (HTTP $STATUS)"
-          echo "Note: 503 is acceptable - means app started but non-critical health check (mail) failed"
+          echo "Backend is healthy (HTTP 200)"
 
       - name: Seed test data
         run: |
@@ -332,6 +341,9 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
     steps:
       - uses: actions/checkout@v5
 
@@ -357,6 +369,12 @@ jobs:
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+          SPRING_MAIL_HOST: localhost
+          SPRING_MAIL_PORT: '1025'
+          SPRING_MAIL_USERNAME: ''
+          SPRING_MAIL_PASSWORD: ''
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
           OTEL_SDK_DISABLED: 'true'
           OTEL_TRACES_EXPORTER: none
           OTEL_METRICS_EXPORTER: none
@@ -735,6 +753,9 @@ jobs:
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
     steps:
       - uses: actions/checkout@v5
 
@@ -760,6 +781,12 @@ jobs:
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+          SPRING_MAIL_HOST: localhost
+          SPRING_MAIL_PORT: '1025'
+          SPRING_MAIL_USERNAME: ''
+          SPRING_MAIL_PASSWORD: ''
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
+          SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
           OTEL_SDK_DISABLED: 'true'
           OTEL_TRACES_EXPORTER: none
           OTEL_METRICS_EXPORTER: none
