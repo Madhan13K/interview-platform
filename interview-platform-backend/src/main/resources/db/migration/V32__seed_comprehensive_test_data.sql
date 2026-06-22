@@ -119,24 +119,24 @@ AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'Binary Tree Level Order T
 -- ─────────────────────────────────────────────────────────────
 -- Job Positions
 -- ─────────────────────────────────────────────────────────────
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'Senior Backend Engineer', 'Engineering', 
        'Build scalable microservices with Java/Spring Boot', 'Java, Spring Boot, PostgreSQL, Kafka, 5+ years',
-       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '$150,000 - $200,000',
+       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '150000', '200000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'Senior Backend Engineer');
 
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'Frontend Developer', 'Engineering',
        'Build beautiful UIs with React and TypeScript', 'React, TypeScript, CSS, 3+ years',
-       'San Francisco, CA', 'OPEN', 'FULL_TIME', 'MID', '$120,000 - $160,000',
+       'San Francisco, CA', 'OPEN', 'FULL_TIME', 'MID', '120000', '160000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'Frontend Developer');
 
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'DevOps Engineer', 'Infrastructure',
        'Manage Kubernetes clusters and CI/CD pipelines', 'Kubernetes, AWS, Terraform, Docker, 4+ years',
-       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '$140,000 - $180,000',
+       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '140000', '180000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'DevOps Engineer');
 
