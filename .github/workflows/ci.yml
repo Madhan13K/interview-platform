@@ -450,7 +450,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy on Backend image
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: interview-platform-backend:${{ github.sha }}
           format: 'sarif'
@@ -459,7 +459,7 @@ jobs:
           exit-code: '0'
 
       - name: Run Trivy on Frontend image
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: interview-platform-frontend:${{ github.sha }}
           format: 'sarif'
@@ -482,14 +482,14 @@ jobs:
           category: 'trivy-frontend'
 
       - name: Trivy table output (Backend)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: interview-platform-backend:${{ github.sha }}
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Trivy table output (Frontend)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: interview-platform-frontend:${{ github.sha }}
           format: 'table'
@@ -560,7 +560,6 @@ jobs:
     name: Performance - Load Tests (k6)
     runs-on: ubuntu-latest
     needs: [backend-build]
-    if: github.ref == 'refs/heads/master'
     services:
       postgres:
         image: postgres:16-alpine
