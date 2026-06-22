@@ -580,22 +580,27 @@ These features are coded but use fake/simulated responses. They need real API in
 
 | Metric | Count |
 |--------|-------|
-| Java source files | ~540+ |
-| JPA Entities | 58+ |
-| REST Controllers | 65+ |
-| Services | 75+ |
-| Repositories | 45+ |
-| Flyway Migrations | 31 (V1-V31) |
-| API Endpoints | ~310+ |
+| Java source files | ~616 |
+| JPA Entities | 62+ |
+| REST Controllers | 70+ |
+| Services | 90+ |
+| Repositories | 50+ |
+| Flyway Migrations | 33 (V1-V33) |
+| API Endpoints | ~320+ |
+| Payment Gateways | 5 (Stripe, Razorpay, PayU, Cashfree, PhonePe) |
 | Supported Languages (Code Exec) | 10 |
 | OAuth2 Providers | 3 |
 | SSO/SAML Providers | 4 |
 | Notification Channels | 6 (Email, SMS, In-App, Push, Slack, Teams) |
 | Docker Compose Services | 8 |
-| CI/CD Pipeline Stages | 7 |
-| Test Methods | 559+ |
+| CI/CD Pipeline Stages | 8 (includes load tests) |
+| Backend Test Files | 60 |
+| Backend Test Methods | ~840+ |
+| Frontend Service Files | 49 |
+| Frontend Pages | 68 |
 | Load Test Scripts | 5 (k6) |
-| Total LOC (Java) | ~32,000+ |
+| E2E Tests | 6 (Playwright) |
+| Total LOC (Java) | ~38,000+ |
 
 ### Technology Stack
 
@@ -655,3 +660,149 @@ These features are coded but use fake/simulated responses. They need real API in
 | Apache POI | 5.2.5 | 5.2.x | Current | - |
 | Firebase Admin | 9.2.0 | 9.x | Current | - |
 | Twilio | 9.14.1 | 9.x | Current | - |
+
+---
+
+## Future Features Roadmap (Can Be Implemented Next)
+
+### Phase 13: AI & Intelligence (High Impact)
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 1 | **AI Interview Coach** | Real-time AI coaching for interviewers during sessions (suggested follow-up questions, time management, bias alerts) | Large | Very High |
+| 2 | **Smart Talent Matching** | AI matches candidates to open roles based on skills, experience, culture fit, and career trajectory | Large | Very High |
+| 3 | **Automated Screening Bot** | AI conducts initial phone screens asynchronously (text/voice) and provides pass/fail recommendations | Large | High |
+| 4 | **Interview Question Generator v2** | Context-aware questions based on candidate resume + job description + previous round feedback | Medium | High |
+| 5 | **Sentiment Analysis** | Real-time sentiment detection in chat/video transcripts to gauge candidate engagement | Medium | Medium |
+| 6 | **Compensation Intelligence** | AI-powered salary recommendations based on market data, candidate level, location, and offer history | Medium | High |
+| 7 | **Attrition Risk Prediction** | Predict which hired candidates are at risk of leaving within 6 months based on interview signals | Large | Medium |
+| 8 | **Interview Difficulty Calibration** | Automatically adjust question difficulty based on candidate performance in real-time | Medium | Medium |
+
+### Phase 14: Collaboration & Communication
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 9 | **Async Video Interviews** | One-way video responses (candidate records answers to pre-set questions at their own time) | Medium | Very High |
+| 10 | **AI Meeting Summarizer** | Automatic meeting notes, action items, and follow-ups generated from interview recordings | Medium | High |
+| 11 | **Slack/Teams Deep Integration** | Create interviews, view candidates, approve offers directly within Slack/Teams (slash commands + interactive messages) | Medium | High |
+| 12 | **Collaborative Hiring Decisions** | Real-time voting/polling for hiring committees with anonymous scoring and calibration rounds | Medium | High |
+| 13 | **Candidate Communication Templates** | Smart email/SMS templates with merge fields, A/B testing, and delivery optimization | Small | Medium |
+| 14 | **Interview Prep Portal** | Candidate-facing portal with role-specific prep materials, sample questions, and company info | Medium | High |
+| 15 | **Internal Knowledge Base** | Searchable wiki for interview best practices, rubrics, and hiring playbooks per team | Medium | Medium |
+
+### Phase 15: Advanced Hiring Workflows
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 16 | **Offer Negotiation Tracker** | Track counter-offers, negotiation rounds, competing offers, with AI-suggested responses | Medium | High |
+| 17 | **Headcount Planning** | Connect hiring to headcount budgets, forecast hiring needs by quarter, track against plan | Large | High |
+| 18 | **Requisition Approvals** | Multi-level requisition approval workflow before a job can be posted | Medium | Medium |
+| 19 | **Campus Recruiting Module** | Bulk interview scheduling for campus events, school/university tracking, cohort management | Large | Medium |
+| 20 | **Internal Mobility** | Internal job board for existing employees, transfer/promotion workflow, manager approvals | Medium | High |
+| 21 | **Contingent Workforce** | Manage contract/freelance hiring with different workflows, compliance, and billing | Large | Medium |
+| 22 | **Succession Planning** | Identify high-potential internal candidates for future leadership roles | Medium | Medium |
+| 23 | **Agency Portal** | External recruiter portal with candidate submissions, fee tracking, and SLAs | Large | Medium |
+
+### Phase 16: Analytics & Reporting
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 24 | **Custom Report Builder** | Drag-and-drop report designer with saved templates, scheduled delivery, and export | Large | Very High |
+| 25 | **Hiring Funnel Analytics** | Visual funnel from application → hire with drop-off analysis per stage, source, department | Medium | High |
+| 26 | **Interviewer Calibration Dashboard** | Compare interviewer scores across same candidates, identify rating inflation/deflation | Medium | High |
+| 27 | **Real-time Hiring Dashboard** | Live TV-mode dashboard for recruiting war rooms (active reqs, interviews today, offers pending) | Medium | Medium |
+| 28 | **Candidate Experience Score (NPS)** | Post-interview NPS surveys with trend analysis and correlation to offer acceptance | Small | High |
+| 29 | **Cost-per-Hire Tracking** | Full cost attribution (recruiter time, tools, job boards, agency fees) per hire | Medium | High |
+| 30 | **Competitive Intelligence** | Track competitor hiring patterns, salary ranges, and time-to-fill benchmarks | Large | Medium |
+
+### Phase 17: Compliance & Enterprise
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 31 | **SOC 2 Type II Controls** | Automated evidence collection, access reviews, change management tracking | Large | Very High |
+| 32 | **ISO 27001 ISMS** | Information security management system with policy engine and risk registry | Large | High |
+| 33 | **WCAG 2.1 AA Accessibility** | Full accessibility audit + remediation across all 68 frontend pages | Large | Very High |
+| 34 | **Internationalization (i18n)** | Multi-language support (10+ languages) with RTL layout support | Large | High |
+| 35 | **Tenant Data Isolation** | Row-level security (RLS) in PostgreSQL for complete data isolation between orgs | Medium | Very High |
+| 36 | **Audit Log Immutability** | Export audit logs to append-only S3 with lifecycle policies and compliance certification | Small | High |
+| 37 | **EEO Compliance Reporting** | US Equal Employment Opportunity reporting with demographic tracking and OFCCP compliance | Medium | High |
+| 38 | **Right to Explanation** | GDPR Article 22 compliance: explain automated decisions (AI scoring) to candidates on request | Medium | High |
+
+### Phase 18: Platform & Infrastructure
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 39 | **Read Replicas** | PostgreSQL read replica routing for analytics queries via `@Transactional(readOnly=true)` | Medium | High |
+| 40 | **CQRS + Elasticsearch** | Materialized views for dashboard/search, separate read/write models | Large | High |
+| 41 | **API Gateway (Kong/Envoy)** | Centralized rate limiting, auth caching, request routing, canary deployments | Medium | Medium |
+| 42 | **Microservices Split** | Extract Notification, AI, Code Execution as independent deployable services | Large | Medium |
+| 43 | **Event Sourcing** | Append-only event log for full temporal queries and audit compliance | Large | Medium |
+| 44 | **CDN Integration** | CloudFront/Fastly for static assets, presigned URL caching, edge optimization | Small | Medium |
+| 45 | **Database Sharding** | Horizontal partitioning by organization for multi-tenant performance isolation | Large | Low |
+| 46 | **gRPC Internal Communication** | Replace REST for inter-service calls if microservices are extracted | Medium | Low |
+| 47 | **Kubernetes Auto-Scaling** | HPA/VPA based on request volume, interview schedule density, and code execution queue depth | Medium | High |
+| 48 | **Blue-Green Deployments** | Zero-downtime deployments with instant rollback capability | Medium | High |
+
+### Phase 19: Mobile & Accessibility
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 49 | **React Native Mobile App** | Full-featured mobile app for candidates (apply, schedule, join interviews) | Very Large | High |
+| 50 | **Interviewer Mobile App** | Mobile app for interviewers (view schedule, join sessions, submit feedback on-the-go) | Large | Medium |
+| 51 | **PWA (Progressive Web App)** | Offline-capable web app with push notifications, home screen install | Medium | High |
+| 52 | **Voice Interface** | Alexa/Google Assistant skill for checking interview schedule and getting updates | Medium | Low |
+| 53 | **Screen Reader Optimization** | ARIA labels, keyboard navigation, and screen reader testing across all components | Medium | High |
+
+### Phase 20: Marketplace & Ecosystem
+
+| # | Feature | Description | Effort | Value |
+|---|---------|-------------|--------|-------|
+| 54 | **Plugin/Extension System** | Allow third-party developers to build integrations (webhooks + events + UI extensions) | Very Large | High |
+| 55 | **Template Marketplace** | Community-shared interview templates, scorecards, and question banks | Large | Medium |
+| 56 | **White-Label Solution** | Fully rebrandable platform for resellers and enterprise customers | Large | High |
+| 57 | **Partner API** | Public API with OAuth2 for third-party integrations (similar to Salesforce AppExchange) | Large | Medium |
+| 58 | **Certification Program** | Online certification for interviewers using the platform (gamification + badges) | Medium | Medium |
+
+---
+
+## Implementation Priority Matrix
+
+### Immediate (Next 1-2 Sprints)
+
+| Feature | Why Now | Effort |
+|---------|---------|--------|
+| Async Video Interviews (#9) | Massive time savings for initial screens | Medium |
+| Custom Report Builder (#24) | Most requested by enterprise customers | Large |
+| WCAG Accessibility (#33) | Legal compliance requirement | Large |
+| Tenant Data Isolation (#35) | Security requirement for enterprise | Medium |
+| Hiring Funnel Analytics (#25) | Core product value | Medium |
+
+### Short-term (1-3 Months)
+
+| Feature | Why | Effort |
+|---------|-----|--------|
+| AI Interview Coach (#1) | Competitive differentiator | Large |
+| Slack/Teams Integration (#11) | Reduces context switching for users | Medium |
+| Offer Negotiation (#16) | Closes workflow gap | Medium |
+| Read Replicas (#39) | Performance at scale | Medium |
+| Candidate NPS (#28) | Product feedback loop | Small |
+
+### Medium-term (3-6 Months)
+
+| Feature | Why | Effort |
+|---------|-----|--------|
+| React Native App (#49) | Mobile-first users | Very Large |
+| SOC 2 Compliance (#31) | Enterprise sales requirement | Large |
+| Internationalization (#34) | Global market expansion | Large |
+| Headcount Planning (#17) | Enterprise value prop | Large |
+| Smart Talent Matching (#2) | AI differentiator | Large |
+
+### Long-term (6-12 Months)
+
+| Feature | Why | Effort |
+|---------|-----|--------|
+| Plugin System (#54) | Platform ecosystem growth | Very Large |
+| White-Label (#56) | Revenue channel | Large |
+| Microservices (#42) | Scale beyond monolith | Large |
+| Event Sourcing (#43) | Architecture evolution | Large |
+| Partner API (#57) | Ecosystem | Large |
