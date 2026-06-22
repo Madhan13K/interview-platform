@@ -1,6 +1,6 @@
 # Interview Platform
 
-> AI-powered interview management system — 68 pages, 310+ APIs, live coding, video calls, Stripe billing, enterprise security.
+> AI-powered interview management system — 68 pages, 320+ APIs, 13 AI services, live coding, video calls, Stripe billing, enterprise security.
 
 **Repository:** https://github.com/Madhan13K/interview-platform
 
@@ -31,13 +31,18 @@ cd ../interview-platform-frontend && npm install && npm run dev
 | Category | What | Count |
 |----------|------|-------|
 | Frontend Pages | Next.js 16 + React 19 + Tailwind | 68 routes |
-| Backend APIs | Spring Boot 4.0.6 + Java 21 | 310+ endpoints |
-| Frontend Services | TypeScript API layer | 47 service files |
-| Backend Services | Business logic layer | 85+ services |
-| Database | PostgreSQL + Flyway | 55+ tables (32 migrations) |
+| Backend APIs | Spring Boot 4.0.6 + Java 21 | 320+ endpoints |
+| Frontend Services | TypeScript API layer | 49 service files |
+| Backend Services | Business logic layer | 97 services |
+| Backend Modules | Feature packages | 78 modules |
+| Database | PostgreSQL + Flyway | 55+ tables (33 migrations) |
+| AI Intelligence | OpenAI GPT-4o-mini powered | 13 AI services |
 | Security | JWT + OAuth2 + MFA + SSO + Encryption | 21 features |
-| Integrations | OpenAI, Stripe, Twilio, Zoom, Firebase, Checkr, DocuSign, Greenhouse, LinkedIn, S3, ClamAV, Daily.co | 15 providers |
+| Payment Gateways | Stripe + Razorpay + PayU + Cashfree + PhonePe | 5 gateways |
+| Integrations | OpenAI, Stripe, Twilio, Zoom, Firebase, Checkr, DocuSign, Greenhouse | 15 providers |
 | Load Tests | k6 performance scripts | 5 scenarios |
+| Test Files | Unit + Integration + E2E | 60 backend + Playwright |
+| DevOps | Docker, K8s, GitHub Actions, Prometheus, Grafana | 9 configs |
 | DevOps | Docker, K8s, GitHub Actions, Prometheus, Grafana | 9 config files |
 
 ---
@@ -45,16 +50,36 @@ cd ../interview-platform-frontend && npm install && npm run dev
 ## Features by Role
 
 ### Recruiter
-Dashboard, Schedule Interviews, Manage Pipelines (Kanban), Create Job Positions, Careers Portal, Send Offers, Referral Program, Bulk Operations, Reports, AI Suggestions, SLA Tracking, Job Board Auto-Posting, ATS Sync, Background Checks, Predictive Analytics
+Dashboard, Schedule Interviews, Manage Pipelines (Kanban), Create Job Positions, Careers Portal, Send Offers, Referral Program, Bulk Operations, Reports, AI Suggestions, SLA Tracking, Job Board Auto-Posting, ATS Sync, Background Checks, Predictive Analytics, Compensation Intelligence, Smart Talent Matching
 
 ### Interviewer
-Conduct Live Sessions (Code Editor + Video + Chat + Whiteboard), Submit Feedback/Scorecards, Question Bank, Interview Kits, View Leaderboard, In-App Messaging, Plagiarism Detection, Test Case Validation
+Conduct Live Sessions (Code Editor + Video + Chat + Whiteboard), Submit Feedback/Scorecards, Question Bank, Interview Kits, View Leaderboard, In-App Messaging, Plagiarism Detection, Test Case Validation, AI Interview Coach (real-time suggestions + bias alerts), Adaptive Difficulty Calibration
 
 ### Candidate
-Apply for Jobs, Pick Preferred Time Slots, Join Interview Session, Track Application Status, AI Chatbot, Assessment Marketplace, Self-Service Portal
+Apply for Jobs, Pick Preferred Time Slots, Join Interview Session, Track Application Status, AI Chatbot, Assessment Marketplace, Self-Service Portal, Automated Screening Bot
 
 ### Admin
-User/Role/Permission Management, Audit Logs, Webhooks, API Keys, MFA, SSO/SAML, GDPR, Billing (Stripe), Feature Flags, Integrations, Workflow Engine, IP Whitelisting, Account Security, Data Retention, Data Residency, Mobile SDK Config
+User/Role/Permission Management, Audit Logs, Webhooks, API Keys, MFA, SSO/SAML, GDPR, Billing (5 payment gateways), Feature Flags, Integrations, Workflow Engine, IP Whitelisting, Account Security, Data Retention, Data Residency, Mobile SDK Config, Attrition Risk Monitoring
+
+---
+
+## AI Intelligence (13 Services)
+
+| # | Service | What It Does |
+|---|---------|-------------|
+| 1 | **AI Interview Coach** | Real-time follow-up suggestions, bias alerts, time management during live interviews |
+| 2 | **Smart Talent Matching** | AI matches candidates to jobs (skill overlap, experience, historical success) |
+| 3 | **Automated Screening Bot** | AI conducts initial screens asynchronously, provides pass/fail/review |
+| 4 | **Question Generator v2** | Context-aware questions from resume + JD + previous feedback |
+| 5 | **Sentiment Analysis** | Real-time engagement/confidence detection in chat transcripts |
+| 6 | **Compensation Intelligence** | Salary recommendations (market data × internal benchmarks × level × region) |
+| 7 | **Attrition Risk Prediction** | Predicts which hires will leave within 6 months with mitigation steps |
+| 8 | **Difficulty Calibration** | Adaptive questioning (like GRE/GMAT) - adjusts based on performance |
+| 9 | **AI Suggestions** | OpenAI-powered question/resume/summary generation |
+| 10 | **AI Scoring** | Transcript analysis with communication/technical/problem-solving scores |
+| 11 | **Predictive Analytics** | Candidate success probability, interviewer bias detection, time-to-hire |
+| 12 | **Candidate Sourcing** | Auto-search GitHub for developers matching job requirements |
+| 13 | **AI Scheduling** | ML-based optimal interview time prediction (no-show rates, performance patterns) |
 
 ---
 
@@ -210,13 +235,12 @@ Each document has a **single clear purpose** - no overlapping content:
 | Document | What It Covers | Audience |
 |----------|---------------|----------|
 | [BACKEND_AUDIT_AND_ROADMAP.md](BACKEND_AUDIT_AND_ROADMAP.md) | Architecture, credentials, API testing commands, config reference | Backend developers |
-| [interview-platform-backend/ROADMAP.md](interview-platform-backend/ROADMAP.md) | Feature status (95 done), bugs (fixed/open), future roadmap (58 planned) | Product/Engineering leads |
+| [interview-platform-backend/ROADMAP.md](interview-platform-backend/ROADMAP.md) | Feature status (103 done), bugs (fixed/open), future roadmap (58 planned) | Product/Engineering leads |
 | [TEST_COVERAGE_AUDIT.md](TEST_COVERAGE_AUDIT.md) | Test inventory (60 files), how to run, coverage metrics, gaps | QA/DevOps |
 | [interview-platform-frontend/TECHNICAL_README.md](interview-platform-frontend/TECHNICAL_README.md) | Frontend architecture, 49 services, testing new features | Frontend developers |
 | [interview-platform-frontend/USER_GUIDE.md](interview-platform-frontend/USER_GUIDE.md) | How to use every feature, keyboard shortcuts, troubleshooting | End users |
 | [load-tests/README.md](load-tests/README.md) | k6 performance test guide, thresholds, capacity planning | DevOps/SRE |
 | [monitoring/PERFORMANCE_BASELINES.md](monitoring/PERFORMANCE_BASELINES.md) | Response time targets, alerting rules, regression detection | DevOps/SRE |
-| Load Tests | [load-tests/README.md](load-tests/README.md) | Performance test guide |
 
 ---
 
@@ -224,11 +248,11 @@ Each document has a **single clear purpose** - no overlapping content:
 
 **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand, Axios, shadcn/ui  
 **Backend:** Java 21, Spring Boot 4.0.6, Spring Security 7, JPA/Hibernate, WebSocket/STOMP  
-**Database:** PostgreSQL 15, Redis 7, Flyway (32 migrations)  
-**AI:** OpenAI GPT-4o-mini (structured JSON output, cost tracking)  
+**Database:** PostgreSQL 15, Redis 7, Flyway (33 migrations)  
+**AI (13 services):** OpenAI GPT-4o-mini — Interview Coach, Talent Matching, Screening Bot, Sentiment Analysis, Difficulty Calibration, Compensation Intelligence, Attrition Prediction  
 **Video:** Native WebRTC + Daily.co fallback, Zoom OAuth  
-**Code:** Piston API + Docker sandboxing (7 languages), Plagiarism Detection, Test Case Validation  
-**Payments:** Stripe (checkout, subscriptions, webhooks)  
+**Code:** Piston API + Docker sandboxing (7 languages), Plagiarism Detection (n-gram), Test Case Validation (HackerRank-style)  
+**Payments (5 gateways):** Stripe, Razorpay, PayU, Cashfree, PhonePe (INR + USD + EUR)  
 **SMS:** Twilio (interview reminders, notifications)  
 **Push:** Firebase Cloud Messaging (Android/iOS)  
 **E-Signatures:** DocuSign + Dropbox Sign (real API integration)  
@@ -239,7 +263,7 @@ Each document has a **single clear purpose** - no overlapping content:
 **Virus Scanning:** ClamAV (file upload protection)  
 **Feature Flags:** LaunchDarkly / Flagsmith / Local  
 **Security:** RSA-256 JWT, OAuth2+PKCE, TOTP MFA, SAML SSO, AES-256-GCM encryption, rate limiting, IP whitelisting  
-**DevOps:** Docker, Kubernetes, GitHub Actions, Prometheus, Grafana, k6 load testing
+**DevOps:** Docker, Kubernetes, GitHub Actions, Prometheus, Grafana, k6, Playwright
 
 ---
 
@@ -248,24 +272,28 @@ Each document has a **single clear purpose** - no overlapping content:
 ```
 interview-platform/
 ├── interview-platform-backend/     # Spring Boot 4.0.6 (Java 21)
-│   ├── src/main/java/             # 85+ services, 65+ controllers
-│   ├── src/main/resources/        # 32 Flyway migrations, config
-│   ├── src/test/                  # Integration + WebMvc tests
-│   ├── Dockerfile                 # Production Docker build
+│   ├── src/main/java/             # 97 services, 70+ controllers, 78 modules
+│   ├── src/main/resources/        # 33 Flyway migrations, config profiles
+│   ├── src/test/                  # 60 test files (unit + integration)
+│   ├── Dockerfile                 # Production multi-stage build
 │   └── pom.xml                    # Maven dependencies
 ├── interview-platform-frontend/    # Next.js 16 (React 19)
 │   ├── src/app/                   # 68 page routes
-│   ├── src/services/              # 47 API service files
+│   ├── src/services/              # 49 API service files
 │   ├── src/components/            # 29 UI components
 │   ├── src/hooks/                 # 5 custom hooks
-│   ├── Dockerfile                 # Production Docker build
-│   └── TECHNICAL_README.md        # Frontend architecture docs
-├── load-tests/                    # k6 performance test scripts
-├── monitoring/                    # Prometheus + Grafana configs
-├── k8s/                           # Kubernetes deployment manifests
-├── scripts/                       # Utility scripts (seed-test-data.sh)
-├── .github/workflows/             # CI/CD + Deploy pipelines
-├── render.yaml                    # Render Blueprint (auto-deploy)
-├── BACKEND_AUDIT_AND_ROADMAP.md   # Complete technical reference
-└── TEST_COVERAGE_AUDIT.md         # Test gap analysis
+│   ├── e2e/                       # Playwright E2E tests
+│   ├── .storybook/                # Component library
+│   ├── Dockerfile                 # Production build
+│   └── TECHNICAL_README.md        # Frontend architecture
+├── .devcontainer/                 # VS Code dev container
+├── load-tests/                    # 5 k6 performance scripts
+├── monitoring/                    # Prometheus + Grafana + alerting rules
+├── k8s/                           # Kubernetes manifests
+├── scripts/                       # seed-test-data.sh, generate-api-client.sh
+├── .github/workflows/             # CI/CD + Deploy + Seed pipelines
+├── render.yaml                    # Render Blueprint (one-click deploy)
+├── BACKEND_AUDIT_AND_ROADMAP.md   # Technical reference
+├── TEST_COVERAGE_AUDIT.md         # Test documentation
+└── README.md                      # This file
 ```
