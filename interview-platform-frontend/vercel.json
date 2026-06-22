@@ -8,6 +8,6 @@
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://interview-platform-backend.up.railway.app"
+    "NEXT_PUBLIC_API_URL": "https://interview-platform-backend.onrender.com"
   }
 }
