@@ -48,7 +48,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final RedisRateLimiterService redisRateLimiterService;
     private final Map<String, RateLimitEntry> requestCounts = new ConcurrentHashMap<>();
 
-    public RateLimitingFilter(RedisRateLimiterService redisRateLimiterService) {
+    public RateLimitingFilter(@org.springframework.lang.Nullable RedisRateLimiterService redisRateLimiterService) {
         this.redisRateLimiterService = redisRateLimiterService;
     }
 

@@ -19,6 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/code-execution")
 @Tag(name = "Code Execution", description = "Sandboxed code execution engine for coding assessments")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.code-execution.enabled", havingValue = "true")
 public class CodeExecutionController {
 
     private final CodeExecutionService codeExecutionService;

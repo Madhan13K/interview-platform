@@ -1,5 +1,6 @@
 package com.interview_platform_backend.interview_platform_backend.security.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -7,6 +8,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@ConditionalOnBean(RedisTemplate.class)
 public class RedisRateLimiterService {
 
     private final RedisTemplate<String, Object> redisTemplate;
