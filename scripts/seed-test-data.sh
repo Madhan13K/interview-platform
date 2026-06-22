@@ -23,11 +23,12 @@ TOKEN=$(curl -s -X POST "$BASE_URL/api/v1/auth/login" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" | python3 -c "import sys,json;print(json.load(sys.stdin).get('accessToken',''))" 2>/dev/null)
 
 if [ -z "$TOKEN" ]; then
-  echo "  ✗ Login failed. Trying with test user..."
+  echo "  ✗ Login failed. Trying to register test user..."
   # Try registering admin first
-  curl -s -X POST "$BASE_URL/api/v1/auth/register" \
+  REGISTER_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$BASE_URL/api/v1/auth/register" \
     -H "Content-Type: application/json" \
-    -d '{"firstName":"Admin","lastName":"User","email":"admin@interview.com","password":"admin123"}' > /dev/null 2>&1
+    -d '{"firstName":"Admin","lastName":"User","email":"admin@interview.com","password":"admin123"}')
+  echo "  Register response: $REGISTER_RESPONSE"
   
   TOKEN=$(curl -s -X POST "$BASE_URL/api/v1/auth/login" \
     -H "Content-Type: application/json" \
