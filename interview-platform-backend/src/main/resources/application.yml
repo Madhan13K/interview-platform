@@ -330,9 +330,33 @@ app:
   # --- Billing (Stripe) ---
   billing:
     enabled: ${BILLING_ENABLED:false}
+    default-currency: ${BILLING_DEFAULT_CURRENCY:USD}
+    tax-rate: ${BILLING_TAX_RATE:0.18}
+    trial-days: ${BILLING_TRIAL_DAYS:14}
     stripe:
+      enabled: ${STRIPE_ENABLED:false}
       secret-key: ${STRIPE_SECRET_KEY:}
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    razorpay:
+      enabled: ${RAZORPAY_ENABLED:false}
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+    payu:
+      enabled: ${PAYU_ENABLED:false}
+      merchant-key: ${PAYU_MERCHANT_KEY:}
+      merchant-salt: ${PAYU_MERCHANT_SALT:}
+      base-url: ${PAYU_BASE_URL:https://info.payu.in}
+    cashfree:
+      enabled: ${CASHFREE_ENABLED:false}
+      app-id: ${CASHFREE_APP_ID:}
+      secret-key: ${CASHFREE_SECRET_KEY:}
+      base-url: ${CASHFREE_BASE_URL:https://api.cashfree.com/pg}
+    phonepe:
+      enabled: ${PHONEPE_ENABLED:false}
+      merchant-id: ${PHONEPE_MERCHANT_ID:}
+      salt-key: ${PHONEPE_SALT_KEY:}
+      salt-index: ${PHONEPE_SALT_INDEX:1}
+      base-url: ${PHONEPE_BASE_URL:https://api.phonepe.com/apis/hermes}
   # --- SLA Tracking ---
   sla:
     response-time-hours: ${SLA_RESPONSE_TIME_HOURS:48}
