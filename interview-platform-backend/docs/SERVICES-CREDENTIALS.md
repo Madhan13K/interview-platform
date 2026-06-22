@@ -31,6 +31,60 @@ A practical "how to get everything working" reference for the Interview Platform
 | SonarCloud | Static code analysis | No | Yes (open source) | Token |
 | OWASP Dependency-Check | Vulnerability scanning | No | Yes (free/public NVD) | None |
 | Docker | Code execution engine | Yes | Yes (free) | Docker socket access |
+| **OpenAI** | **13 AI services (Coach, Matching, Screening, etc.)** | **No** | **$5 credit** | **API Key** |
+| **Razorpay** | **Indian payment gateway (UPI, Cards, NetBanking)** | **No** | **Yes (test mode)** | **Key ID + Key Secret** |
+| **PayU** | **Indian payment gateway (UPI, BNPL)** | **No** | **Yes (test mode)** | **Merchant Key + Salt** |
+| **Cashfree** | **Indian payment gateway (UPI, PayLater)** | **No** | **Yes (test mode)** | **App ID + Secret Key** |
+| **PhonePe** | **Indian payment gateway (UPI)** | **No** | **Yes (sandbox)** | **Merchant ID + Salt Key** |
+| **Stripe** | **International payments (Cards, SEPA)** | **No** | **Yes (test mode)** | **Secret Key + Webhook Secret** |
+| **Firebase** | **Push notifications (Android/iOS)** | **No** | **Yes (free tier)** | **Service account JSON** |
+| **Checkr** | **Background checks (post-offer)** | **No** | **Yes (sandbox)** | **API Key** |
+| **Sterling** | **Background checks (alternative)** | **No** | **No** | **API Key** |
+| **Greenhouse** | **ATS bidirectional sync** | **No** | **No** | **API Key (Harvest)** |
+| **Lever** | **ATS bidirectional sync** | **No** | **No** | **API Key** |
+| **ClamAV** | **Virus scanning on file uploads** | **No** | **Self-hosted (Docker)** | **Host + Port (3310)** |
+| **GitHub (PAT)** | **Candidate sourcing (search developers)** | **No** | **Yes (free)** | **Personal Access Token** |
+
+---
+
+## 1.5 New Services Added (Phase 9-14)
+
+### AI Intelligence Services (13 total — all use OpenAI)
+
+| Service | Package | What It Does | Credential |
+|---------|---------|-------------|------------|
+| AI Interview Coach | `aicoach/` | Real-time follow-ups, bias alerts, time management | `OPENAI_API_KEY` |
+| Smart Talent Matching | `talentmatch/` | Score candidates against job requirements | `OPENAI_API_KEY` (optional) |
+| Automated Screening Bot | `screeningbot/` | Async text-based initial screens with AI grading | `OPENAI_API_KEY` |
+| Question Generator v2 | `ai/service/` | Context-aware questions from resume + JD + feedback | `OPENAI_API_KEY` |
+| Sentiment Analysis | `sentiment/` | Engagement/confidence detection from text | Pattern-based (no API needed) |
+| Compensation Intelligence | `compensation/` | Salary recommendations by level/region | Internal data only |
+| Attrition Risk Prediction | `predictive/` | 6-month leaving probability with mitigations | Internal data only |
+| Difficulty Calibration | `ai/service/` | Adaptive questioning (like GRE/GMAT) | Internal logic only |
+| AI Suggestions | `ai/service/` | Question/resume/summary generation | `OPENAI_API_KEY` |
+| AI Scoring | `aiscoring/` | Transcript analysis (communication/technical/problem-solving) | `OPENAI_API_KEY` |
+| Predictive Analytics | `predictive/` | Candidate success, interviewer bias, time-to-hire | Internal data |
+| AI Scheduling | `aischeduling/` | ML optimal time prediction (no-show + rating patterns) | Internal data |
+| Candidate Sourcing | `sourcing/` | GitHub API search + AI skill extraction | `GITHUB_TOKEN` + `OPENAI_API_KEY` |
+
+### Payment Gateways (5 total)
+
+| Gateway | Package | Region | Config Properties |
+|---------|---------|--------|-------------------|
+| Stripe | `billing/` | International | `app.billing.stripe.secret-key` |
+| Razorpay | `billing/gateway/` | India | `app.billing.razorpay.key-id`, `app.billing.razorpay.key-secret` |
+| PayU | `billing/gateway/` | India | `app.billing.payu.merchant-key`, `app.billing.payu.merchant-salt` |
+| Cashfree | `billing/gateway/` | India | `app.billing.cashfree.app-id`, `app.billing.cashfree.secret-key` |
+| PhonePe | `billing/gateway/` | India | `app.billing.phonepe.merchant-id`, `app.billing.phonepe.salt-key` |
+
+### Innovation Services (4 total)
+
+| Service | Package | What It Does |
+|---------|---------|-------------|
+| CRDT Collaborative Editing | `crdt/` | Conflict-free concurrent document editing via WebSocket |
+| Interview Replay | `replay/` | Full session playback with timeline scrubbing (code + whiteboard + feedback) |
+| AI-Powered Scheduling | `aischeduling/` | ML predictions for optimal interview times |
+| Candidate Sourcing AI | `sourcing/` | GitHub developer search + AI skill extraction + ranking |
 
 ---
 

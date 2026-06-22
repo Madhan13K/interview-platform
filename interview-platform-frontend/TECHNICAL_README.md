@@ -689,17 +689,183 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 # SMS is sent automatically on interview reminders when candidate has phone number
 ```
 
+### 19. AI Interview Coach (Phase 13)
+```bash
+# Real-time coaching during live interview sessions
+# Technical: Analyzes transcript → generates follow-ups + detects bias + tracks time
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/ai/coach/suggest \
+  -d '{"recentTranscript":"Candidate explained their approach to system design...","jobTitle":"Senior Engineer","competencies":["system-design","leadership","problem-solving"],"elapsedMinutes":25,"totalMinutes":60}'
+# Returns: { followUpQuestions: [...], biasAlerts: [...], timeAlert: "...", coverage: {...} }
+```
+
+### 20. Smart Talent Matching (Phase 13)
+```bash
+# AI matches candidates to open job positions
+# Technical: Scores on skill overlap (50%) + experience level (30%) + historical fit (20%)
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:8080/api/v1/talent-match/job/<jobPositionId>?maxResults=10"
+# Returns: [{ candidateId, name, overallScore, scoreBreakdown: {skills, experience, historicalFit}, matchReason }]
+```
+
+### 21. Automated Screening Bot (Phase 13)
+```bash
+# Generate screening questions for a role
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/screening/questions \
+  -d '{"jobTitle":"React Developer","requirements":"React, TypeScript, 3+ years","questionCount":5}'
+
+# Evaluate candidate responses (AI grades pass/fail)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/screening/evaluate \
+  -d '{"jobTitle":"React Developer","requirements":"React, TypeScript","responses":[{"question":"Years of experience?","answer":"5 years with React and TypeScript"}]}'
+# Returns: { score: 8, recommendation: "PASS", strengths: [...], concerns: [...] }
+```
+
+### 22. Sentiment Analysis (Phase 13)
+```bash
+# Analyze candidate engagement from text
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/sentiment/analyze \
+  -d '{"text":"I am really excited about this opportunity. I have been passionate about distributed systems for 5 years and would love to contribute to your team."}'
+# Returns: { sentimentScore: 0.82, engagementScore: 0.75, label: "POSITIVE", details: {...} }
+```
+
+### 23. Compensation Intelligence (Phase 13)
+```bash
+# Get salary recommendation for a role
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:8080/api/v1/compensation/recommend?level=SENIOR&location=Bangalore&department=Engineering&currency=INR"
+# Returns: { currency: "INR", recommendedMin: 2500000, recommendedTarget: 3500000, recommendedMax: 5000000, marketMin: ..., insights: [...] }
+
+# Assess if an offer is competitive
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:8080/api/v1/compensation/assess?amount=3000000&level=SENIOR&location=India"
+# Returns: { percentile: 62.5, rating: "COMPETITIVE" }
+```
+
+### 24. Attrition Risk Prediction (Phase 13)
+```bash
+# Predict if a hired candidate will leave within 6 months
+curl -H "Authorization: Bearer $TOKEN" \
+  localhost:8080/api/v1/predictions/attrition/<candidateId>
+# Returns: { riskScore: 0.45, riskLevel: "MEDIUM", riskFactors: ["salary gap", "long process"], mitigations: ["signing bonus", "strong onboarding"] }
+```
+
+### 25. Difficulty Calibration (Phase 13)
+```bash
+# Get next question difficulty based on candidate performance
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/ai/calibrate \
+  -d '{"performanceHistory":[{"difficulty":"MEDIUM","score":0.9,"competency":"algorithms"},{"difficulty":"HARD","score":0.7,"competency":"system-design"}]}'
+# Returns: { nextDifficulty: "HARD", abilityEstimate: 0.78, reason: "Strong performance - increasing difficulty" }
+```
+
+### 26. Multi-Gateway Payments (Phase 12)
+```bash
+# Create Razorpay order (India - UPI/Cards/NetBanking)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/billing/razorpay/order \
+  -d '{"amount":11999,"currency":"INR","description":"Professional Plan - Monthly"}'
+# Returns: { id: "order_xxx", amount: 1199900, currency: "INR" }
+
+# Verify Razorpay payment
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/billing/razorpay/verify \
+  -d '{"razorpay_order_id":"order_xxx","razorpay_payment_id":"pay_xxx","razorpay_signature":"..."}'
+
+# Create Stripe checkout (International)
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/billing/checkout \
+  -d '{"customerId":"cus_xxx","priceId":"price_xxx","successUrl":"http://localhost:3000/billing","cancelUrl":"http://localhost:3000/billing"}'
+```
+
+### 27. CRDT Collaborative Editing (Innovation)
+```bash
+# Get document content
+curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/crdt/documents/<docId>
+
+# Apply operation (via WebSocket in practice)
+# Subscribe: /topic/document/{docId}/ops
+# Send: /app/document/{docId}/op
+# Payload: { type: "INSERT", charId: "site1-42", character: "a", afterId: "site1-41", siteId: "site1", timestamp: 42 }
+```
+
+### 28. Interview Replay (Innovation)
+```bash
+# Get full replay timeline for an interview
+curl -H "Authorization: Bearer $TOKEN" \
+  localhost:8080/api/v1/replay/<interviewId>/timeline
+# Returns: { startTime, endTime, durationSeconds, totalEvents, events: [{ type: "CODE_CHANGE"|"WHITEBOARD_STROKE"|"FEEDBACK_SUBMITTED", timestamp, data }] }
+
+# Get events in a time range (for scrubbing)
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:8080/api/v1/replay/<interviewId>/range?from=2026-01-01T10:00:00Z&to=2026-01-01T10:30:00Z"
+```
+
+### 29. AI-Powered Scheduling (Innovation)
+```bash
+# Get AI-suggested optimal interview slots
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/scheduling/ai-suggest \
+  -d '{"interviewerId":"<uuid>","candidateId":"<uuid>","durationMinutes":60,"timeZone":"Asia/Kolkata","maxSuggestions":5}'
+# Returns: [{ startTime, endTime, score: 0.92, reason: "Low no-show rate; Tue/Wed best completion; high ratings at 10am" }]
+
+# Predict no-show probability for a specific slot
+curl -H "Authorization: Bearer $TOKEN" \
+  "localhost:8080/api/v1/scheduling/no-show-risk?scheduledTime=2026-07-15T10:00:00Z&candidateId=<uuid>"
+# Returns: { probability: 0.08 }
+```
+
+### 30. Candidate Sourcing AI (Innovation)
+```bash
+# Search GitHub for candidates matching skills
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/sourcing/github \
+  -d '{"skills":["react","typescript","node"],"location":"India","maxResults":20}'
+# Returns: [{ name, profileUrl, source: "GITHUB", skills, relevanceScore }]
+
+# Extract skills from job description using AI
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  localhost:8080/api/v1/sourcing/extract-skills \
+  -d '{"jobDescription":"We need a senior engineer with experience in microservices, Kubernetes, and Go..."}'
+# Returns: { skills: ["go", "kubernetes", "microservices", "docker"] }
+```
+
 ---
 
-## File Summary (New Files Added)
+## Additional Credentials for New Features
+
+| Feature | Credential | Where to Get | Required? |
+|---------|-----------|--------------|-----------|
+| AI Features (13 services) | `OPENAI_API_KEY` | platform.openai.com/api-keys | Yes (falls back to mock without) |
+| Razorpay | `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` | dashboard.razorpay.com | Only for Indian payments |
+| PayU | `PAYU_MERCHANT_KEY` + `PAYU_MERCHANT_SALT` | payu.in/merchant-dashboard | Only for Indian payments |
+| Cashfree | `CASHFREE_APP_ID` + `CASHFREE_SECRET_KEY` | merchant.cashfree.com | Only for Indian payments |
+| PhonePe | `PHONEPE_MERCHANT_ID` + `PHONEPE_SALT_KEY` | developer.phonepe.com | Only for Indian payments |
+| Stripe | `STRIPE_SECRET_KEY` | dashboard.stripe.com/apikeys | Only for international payments |
+| GitHub Sourcing | `GITHUB_TOKEN` (PAT) | github.com/settings/tokens | Only for candidate sourcing |
+| Twilio SMS | `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` | twilio.com | Only for SMS |
+| Firebase Push | `FIREBASE_CREDENTIALS_PATH` | console.firebase.google.com | Only for mobile push |
+| Zoom Meetings | `ZOOM_ACCOUNT_ID` + `ZOOM_CLIENT_ID` + `ZOOM_CLIENT_SECRET` | marketplace.zoom.us | Only for Zoom video |
+| DocuSign | `DOCUSIGN_ACCOUNT_ID` + `DOCUSIGN_ACCESS_TOKEN` | developers.docusign.com | Only for e-signatures |
+| ClamAV | `CLAMAV_HOST` + `CLAMAV_PORT` | Run: `docker run -p 3310:3310 clamav/clamav` | Only for virus scanning |
+
+> All features work without credentials - they gracefully fall back to mock/log behavior.
+
+---
+
+## File Summary (Complete)
 
 ### API Endpoints (`src/lib/api-endpoints.ts`)
-Added 14 new endpoint groups: MESSAGING, BACKGROUND_CHECK, ATS, JOB_BOARD, SLA, FEATURE_FLAG, BILLING, PREDICTION, CHATBOT, WEBRTC, PLAGIARISM, TEST_CASE, DATA_RESIDENCY, AI_SCORING, MARKETPLACE, IP_WHITELIST
+16 endpoint groups: MESSAGING, BACKGROUND_CHECK, ATS, JOB_BOARD, SLA, FEATURE_FLAG, BILLING, PREDICTION, CHATBOT, WEBRTC, PLAGIARISM, TEST_CASE, DATA_RESIDENCY, AI_SCORING, MARKETPLACE, IP_WHITELIST
 
-### Services (`src/services/`)
-Added 10 new service files: `messaging.service.ts`, `background-check.service.ts`, `ats-integration.service.ts`, `job-board.service.ts`, `sla.service.ts`, `feature-flag.service.ts`, `prediction.service.ts`, `plagiarism.service.ts`, `marketplace.service.ts`, `webrtc.service.ts`
+### Services (`src/services/`) — 49 total
+Core: auth, user, interview, dashboard, scheduling, notification, ai, code-execution, code-editor, report, document, scorecard, template, question, team, pipeline, job-position, organization, webhook, activity, audit, gdpr, mfa, api-key, role, permission, bulk, export-import, self-service, meeting, reminder, tag, video, whiteboard, candidate-feedback, sso, security, search, analytics
 
-### Pages (`src/app/(app)/settings/`)
-Added 2 new pages: `settings/sso/page.tsx`, `settings/security/page.tsx`
+New: messaging, background-check, ats-integration, job-board, sla, feature-flag, prediction, plagiarism, marketplace, webrtc
 
-### Total Frontend Service Count: 47 files covering 310+ backend API endpoints
+### Pages (`src/app/(app)/`) — 68 total
+Including new: `/settings/sso`, `/settings/security`
+
+### Total Frontend → Backend Coverage: 49 service files mapping to 320+ API endpoints

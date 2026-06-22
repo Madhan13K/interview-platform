@@ -29,9 +29,11 @@ The Interview Platform is a comprehensive Applicant Tracking System (ATS) and in
 │  └──────┬───────┘  └──────┬────────┘  └───────┬────────┘  └─────┬──────┘  │
 │         │                  │                    │                  │         │
 │  ┌──────▼──────────────────▼────────────────────▼──────────────────▼──────┐ │
-│  │                        SERVICE LAYER (50+ Services)                     │ │
+│  │                        SERVICE LAYER (97 Services)                     │ │
 │  │  Auth │ User │ Interview │ Pipeline │ Code Exec │ Workflow Engine      │ │
 │  │  Offer │ Calendar │ Notification │ Approval │ Referral │ Analytics    │ │
+│  │  AI Coach │ Talent Match │ Screening Bot │ Compensation │ Sentiment  │ │
+│  │  Payments (5 gateways) │ CRDT │ Replay │ Sourcing │ SLA Tracking     │ │
 │  └──────────────────────────┬─────────────────────────────────────────────┘ │
 │                              │                                               │
 │  ┌──────────────────────────▼─────────────────────────────────────────────┐ │

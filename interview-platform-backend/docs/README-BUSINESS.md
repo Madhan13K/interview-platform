@@ -262,7 +262,7 @@ Then open: http://localhost:8080/swagger-ui.html
 | Pipeline | Visualize and manage candidate flow through stages |
 | Offers | Create, approve, and send offer letters |
 | Calendar Sync | Keep everyone's calendar up-to-date |
-| Notifications | Keep all parties informed (email, SMS, Slack, Teams) |
+| Notifications | Keep all parties informed (email, SMS, Slack, Teams, Push) |
 | Referrals | Incentivize employee referrals |
 | Analytics | Measure hiring effectiveness |
 | Diversity (DEI) | Track and improve hiring diversity |
@@ -270,10 +270,47 @@ Then open: http://localhost:8080/swagger-ui.html
 | Compliance | Meet GDPR/SOC2 requirements |
 | Security | Protect data and control access |
 
+### Newly Added Modules
+
+| Module | Business Purpose |
+|--------|-----------------|
+| **AI Interview Coach** | Help interviewers conduct better interviews in real-time (suggestions, bias alerts) |
+| **Smart Talent Matching** | Automatically match best candidates to open positions |
+| **Automated Screening** | AI conducts initial screens without recruiter involvement |
+| **Compensation Intelligence** | Data-driven salary offers (market benchmarks + internal data) |
+| **Attrition Prediction** | Identify at-risk new hires before they leave |
+| **Sentiment Analysis** | Gauge candidate engagement during interviews |
+| **Adaptive Questions** | Automatically adjust difficulty to match candidate level |
+| **Multi-Gateway Payments** | Accept payments via Stripe, Razorpay, PayU, Cashfree, PhonePe |
+| **Background Checks** | Automated post-offer verification via Checkr/Sterling |
+| **ATS Integration** | Sync with Greenhouse, Lever, Workday |
+| **Job Board Posting** | Auto-distribute listings to LinkedIn, Indeed, Glassdoor |
+| **Assessment Marketplace** | Order third-party tests (HackerRank, Codility, TestGorilla) |
+| **Interview Replay** | Playback recorded sessions with timeline scrubbing |
+| **CRDT Collaboration** | Conflict-free real-time code/whiteboard editing |
+| **Candidate Sourcing** | AI searches GitHub for matching developers |
+| **SLA Tracking** | Monitor recruiter response times and bottlenecks |
+| **Feature Flags** | Gradually roll out features to specific orgs |
+| **IP Whitelisting** | Restrict org access by IP/subnet |
+| **Data Residency** | EU data stays in EU (GDPR Article 44+) |
+
+---
+
+## Subscription Plans
+
+| Plan | Price (Monthly) | For Whom | Key Limits |
+|------|----------------|----------|------------|
+| **Free** | $0 / Free | Solo recruiters testing the platform | 3 users, 10 interviews/month |
+| **Starter** | $49 / ₹3,999 | Small teams (5-10 people) | 10 users, 50 interviews, video |
+| **Professional** | $149 / ₹11,999 | Growing companies | 50 users, AI features, SSO, API |
+| **Enterprise** | $399 / ₹32,999 | Large organizations | Unlimited everything, custom branding |
+
+All plans available in USD (Stripe) and INR (Razorpay/PayU/Cashfree/PhonePe).
+
 ---
 
 ## Contact & Support
 
-- **Repository**: https://github.com/Madhan13K/interview-platform-backend
+- **Repository**: https://github.com/Madhan13K/interview-platform
 - **API Documentation**: http://localhost:8080/swagger-ui.html (when running)
-- **Issues**: https://github.com/Madhan13K/interview-platform-backend/issues
+- **Issues**: https://github.com/Madhan13K/interview-platform/issues
