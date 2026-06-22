@@ -188,6 +188,7 @@ jobs:
           JWT_REFRESH_SECRET: ci-test-refresh-secret-key-minimum-256-bits-long-for-testing-only
           KAFKA_ENABLED: 'false'
           SMS_ENABLED: 'false'
+          CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           OTEL_SDK_DISABLED: 'true'
@@ -353,6 +354,7 @@ jobs:
           JWT_REFRESH_SECRET: ci-test-refresh-secret-key-minimum-256-bits-long-for-testing-only
           KAFKA_ENABLED: 'false'
           SMS_ENABLED: 'false'
+          CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           OTEL_SDK_DISABLED: 'true'
@@ -755,6 +757,7 @@ jobs:
           JWT_REFRESH_SECRET: ci-test-refresh-secret-key-minimum-256-bits-long-for-testing-only
           KAFKA_ENABLED: 'false'
           SMS_ENABLED: 'false'
+          CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           OTEL_SDK_DISABLED: 'true'

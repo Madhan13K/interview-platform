@@ -106,7 +106,7 @@ AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'Tell me about a challengi
 
 INSERT INTO questions (id, title, description, category_id, difficulty, type, expected_duration_minutes, tags, is_active, created_at)
 SELECT gen_random_uuid(), 'React Virtual DOM', 'Explain how React Virtual DOM works and why it improves performance.',
-       c.id, 'MEDIUM', 'TECHNICAL', 10, 'react,performance,dom', true, NOW()
+       c.id, 'MEDIUM', 'THEORETICAL', 10, 'react,performance,dom', true, NOW()
 FROM question_categories c WHERE c.name = 'Frontend'
 AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'React Virtual DOM');
 
