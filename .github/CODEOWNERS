@@ -1,0 +1,5 @@
+# CODEOWNERS - Only the repository owner can approve and merge PRs
+# This file defines who must review and approve pull requests
+
+# Global rule: All files require approval from the repo owner
+* @Madhan13K
