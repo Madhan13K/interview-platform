@@ -114,6 +114,7 @@ jobs:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
     needs: [backend-build, frontend-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v5
 
