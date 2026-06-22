@@ -189,8 +189,14 @@ jobs:
           KAFKA_ENABLED: 'false'
           SMS_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
+          SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+          OTEL_SDK_DISABLED: 'true'
+          OTEL_TRACES_EXPORTER: none
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          JAVA_TOOL_OPTIONS: ''
         run: |
-          ./mvnw spring-boot:run -DskipTests &
+          ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
           echo "Waiting for backend to start..."
           for i in $(seq 1 60); do
             if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
@@ -444,7 +450,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy on Backend image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: interview-platform-backend:${{ github.sha }}
           format: 'sarif'
@@ -453,7 +459,7 @@ jobs:
           exit-code: '0'
 
       - name: Run Trivy on Frontend image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: interview-platform-frontend:${{ github.sha }}
           format: 'sarif'
@@ -476,14 +482,14 @@ jobs:
           category: 'trivy-frontend'
 
       - name: Trivy table output (Backend)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: interview-platform-backend:${{ github.sha }}
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Trivy table output (Frontend)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: interview-platform-frontend:${{ github.sha }}
           format: 'table'
@@ -590,8 +596,14 @@ jobs:
           KAFKA_ENABLED: 'false'
           SMS_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
+          SPRING_DOCKER_COMPOSE_ENABLED: 'false'
+          OTEL_SDK_DISABLED: 'true'
+          OTEL_TRACES_EXPORTER: none
+          OTEL_METRICS_EXPORTER: none
+          OTEL_LOGS_EXPORTER: none
+          JAVA_TOOL_OPTIONS: ''
         run: |
-          ./mvnw spring-boot:run -DskipTests &
+          ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
           echo "Waiting for backend to start..."
           for i in $(seq 1 30); do
             if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then

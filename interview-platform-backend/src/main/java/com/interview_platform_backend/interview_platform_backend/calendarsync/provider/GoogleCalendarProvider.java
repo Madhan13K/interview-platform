@@ -32,8 +32,8 @@ public class GoogleCalendarProvider implements CalendarProviderService {
     @Value("${spring.security.oauth2.client.registration.google.client-secret}")
     private String clientSecret;
 
-    public GoogleCalendarProvider(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.build();
+    public GoogleCalendarProvider() {
+        this.restClient = RestClient.create();
     }
 
     @Override
