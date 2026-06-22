@@ -193,7 +193,6 @@ jobs:
           SMS_ENABLED: 'false'
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
-          JPA_DDL_AUTO: update
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           SPRING_MAIL_HOST: localhost
           SPRING_MAIL_PORT: '1025'
@@ -369,7 +368,6 @@ jobs:
           SMS_ENABLED: 'false'
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
-          JPA_DDL_AUTO: update
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           SPRING_MAIL_HOST: localhost
           SPRING_MAIL_PORT: '1025'
@@ -782,7 +780,6 @@ jobs:
           SMS_ENABLED: 'false'
           CODE_EXECUTION_ENABLED: 'false'
           SPRING_PROFILES_ACTIVE: dev
-          JPA_DDL_AUTO: update
           SPRING_DOCKER_COMPOSE_ENABLED: 'false'
           SPRING_MAIL_HOST: localhost
           SPRING_MAIL_PORT: '1025'
