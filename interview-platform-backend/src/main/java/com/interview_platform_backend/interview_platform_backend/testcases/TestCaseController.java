@@ -10,6 +10,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/test-cases")
 @PreAuthorize("isAuthenticated()")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.code-execution.enabled", havingValue = "true")
 public class TestCaseController {
 
     private final TestCaseValidationService validationService;

@@ -417,7 +417,7 @@ jobs:
             -Dflyway.url=jdbc:postgresql://localhost:5432/interview_platform_test \
             -Dflyway.user=test \
             -Dflyway.password=test \
-            -Dflyway.locations=classpath:db/migration
+            -Dflyway.locations=filesystem:src/main/resources/db/migration
 
       - name: Install PostgreSQL client
         run: sudo apt-get install -y postgresql-client
