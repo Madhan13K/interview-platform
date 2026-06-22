@@ -395,6 +395,123 @@ Organization-level access restrictions.
 
 ---
 
+## AI Intelligence Features (Latest)
+
+### AI Interview Coach
+Real-time assistance for interviewers during live sessions.
+- **Follow-up suggestions**: AI generates next questions based on conversation
+- **Time management**: Alerts when section running too long/short
+- **Bias detection**: Flags leading questions, gendered language, demographic inquiries
+- **Competency tracking**: Shows which skills have/haven't been assessed
+- Available during: Live interview sessions
+
+### Smart Talent Matching
+AI automatically matches candidates to open positions.
+- Scores candidates on skill overlap, experience, and historical success
+- Works bidirectionally (find candidates for jobs OR jobs for candidates)
+- Accessible from: Job positions page and candidate profiles
+
+### Automated Screening Bot
+AI conducts initial screening without interviewer involvement.
+- Generates role-specific screening questions
+- Candidates answer asynchronously (text-based)
+- AI evaluates responses and provides Pass/Fail/Review recommendation
+- Reduces time-to-first-interview by 70%
+
+### Adaptive Difficulty Calibration
+Interview questions automatically adjust to candidate level.
+- Uses computer-adaptive testing (like GRE/GMAT)
+- Steps up difficulty after 3 consecutive strong answers
+- Steps down after 3 struggles to avoid frustration
+- Final assessment: determines candidate's true level (Junior → Principal)
+
+### Sentiment Analysis
+Detects candidate engagement and confidence in real-time.
+- Analyzes positive/negative language indicators
+- Tracks confidence vs hesitation patterns
+- Shows engagement trend (improving/declining/stable)
+- Helps interviewers adjust their approach
+
+### Compensation Intelligence
+AI-powered salary recommendations for offer creation.
+- Market data by level and region (US/India/EU)
+- Internal benchmarks from your organization's accepted offers
+- Offer competitiveness rating (percentile vs market)
+- Supports USD, INR, EUR currencies
+- Navigate to: Offer creation flow
+
+### Attrition Risk Prediction
+Predicts which new hires might leave within 6 months.
+- Scores 6 risk factors: enthusiasm, counter-offers, salary gap, process length, job-hopping history, location
+- Provides specific mitigation recommendations
+- Helps HR plan retention strategies before day one
+
+### Context-Aware Question Generator (v2)
+Generates interview questions tailored to each specific candidate.
+- Reads candidate's resume/profile
+- Considers job description requirements
+- Avoids topics already covered in previous rounds
+- Includes follow-up prompts and time estimates
+
+---
+
+## Payment & Billing (Latest)
+
+### Multi-Gateway Payments
+Organization billing supports 5 payment gateways:
+
+| Gateway | Region | Payment Methods |
+|---------|--------|-----------------|
+| **Stripe** | International | Cards, ACH, SEPA |
+| **Razorpay** | India | UPI, Cards, NetBanking, Wallets, EMI |
+| **PayU** | India | UPI, Cards, NetBanking, BNPL |
+| **Cashfree** | India | UPI, Cards, PayLater, EMI |
+| **PhonePe** | India | UPI, Cards, Wallets |
+
+### Subscription Plans
+
+| Plan | Monthly (USD) | Monthly (INR) | Includes |
+|------|--------------|---------------|----------|
+| **Free** | $0 | Free | 3 users, 10 interviews/month |
+| **Starter** | $49 | ₹3,999 | 10 users, 50 interviews, video |
+| **Professional** | $149 | ₹11,999 | 50 users, AI features, SSO, API access |
+| **Enterprise** | $399 | ₹32,999 | Unlimited, custom branding, priority support |
+
+### Managing Billing
+- Navigate to: `/settings/billing`
+- View current plan and usage
+- Upgrade/downgrade plans
+- View invoice history (GST-compliant for India)
+- Manage payment methods
+
+---
+
+## Developer Tooling (Latest)
+
+### VS Code Dev Container
+One-click development environment setup.
+- Open in VS Code → "Reopen in Container"
+- Pre-configured: Java 21, Node 18, Docker, all ports forwarded
+- All extensions auto-installed (Java, Spring, ESLint, Tailwind)
+
+### Storybook Component Library
+Visual documentation for all UI components.
+```bash
+cd interview-platform-frontend && npx storybook dev -p 6006
+```
+- Browse all 29 components with interactive controls
+- Test different variants, sizes, and states
+
+### OpenAPI Client Generation
+Auto-generate TypeScript API client from backend Swagger.
+```bash
+./scripts/generate-api-client.sh
+```
+- Produces typed models + service classes from live API spec
+- Ensures frontend-backend type safety
+
+---
+
 ## Troubleshooting
 
 ### Can't Login

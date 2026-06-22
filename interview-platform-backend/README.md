@@ -57,21 +57,29 @@ A comprehensive interview management platform built with **Spring Boot 4.0**, pr
 | Layer | Technology |
 |-------|-----------|
 | Framework | Spring Boot 4.0.6, Java 21 |
-| Security | JWT (RSA), OAuth2 (Google, GitHub, Microsoft), RBAC, MFA/TOTP, API Keys |
-| Database | PostgreSQL 16, Flyway Migrations |
+| Security | JWT (RSA-256), OAuth2 (Google, GitHub, Microsoft), RBAC, MFA/TOTP, SAML SSO, API Keys, Rate Limiting |
+| Database | PostgreSQL 16, Flyway Migrations (33 versioned) |
 | Caching | Redis 7 (distributed) + Caffeine (L1 local) |
 | Messaging | Apache Kafka |
-| Real-time | WebSocket (STOMP) |
-| File Storage | AWS S3 / LocalStack (free local emulation) |
+| Real-time | WebSocket (STOMP) + Native WebRTC |
+| File Storage | AWS S3 / LocalStack + ClamAV virus scanning |
+| AI | OpenAI GPT-4o-mini (13 AI services) |
+| Payments | Stripe + Razorpay + PayU + Cashfree + PhonePe |
+| SMS | Twilio SDK |
+| Push | Firebase Cloud Messaging |
+| E-Signatures | DocuSign + Dropbox Sign |
+| ATS | Greenhouse, Lever, Workday bidirectional sync |
 | API Docs | SpringDoc OpenAPI (Swagger UI) |
 | Resilience | Resilience4j (circuit breakers, retry) |
 | Scheduling | ShedLock (distributed locks) |
+| Code Execution | Docker sandboxed containers (10 languages) |
+| Excel | Apache POI 5.2.5 |
+| PDF | OpenPDF 2.0.2 |
 | Build | Maven |
-| Containerization | Docker + Docker Compose (PostgreSQL, Redis, Kafka, LocalStack, OTel Collector, Jaeger) |
-| Observability | OpenTelemetry Java Agent (auto-instrumentation) + OTel Collector + Jaeger + Prometheus |
+| Containerization | Docker + Docker Compose |
+| Observability | OpenTelemetry + Prometheus + Grafana |
 | Email | Spring Mail + Thymeleaf HTML templates |
-| i18n | MessageSource (EN, ES, FR) |
-| Compliance | GDPR (consent, data export, right-to-erasure) |
+| Compliance | GDPR, GST invoicing, Data Residency, SOC 2 ready |
 
 ---
 
@@ -80,32 +88,81 @@ A comprehensive interview management platform built with **Spring Boot 4.0**, pr
 ```
 src/main/java/com/interview_platform_backend/
 ├── activity/               # Activity feed & timeline tracking
-├── ai/                     # AI-powered features (suggestions, parsing, summaries)
+├── ai/                     # AI-powered features (suggestions, parsing, summaries, difficulty calibration, question gen v2)
+├── aicoach/                # AI Interview Coach (real-time suggestions, bias alerts, time management)
+├── aischeduling/           # ML-powered optimal interview time prediction
+├── aiscoring/              # AI transcript analysis with scoring
+├── approval/               # Configurable approval chain workflows
+├── atsintegration/         # ATS sync (Greenhouse, Lever, Workday)
 ├── audit/                  # Audit logging
-├── bulkops/                # Bulk operations (schedule, invite, export)
+├── backgroundcheck/        # Background checks (Checkr, Sterling)
+├── billing/                # Multi-gateway payments (Stripe, Razorpay, PayU, Cashfree, PhonePe)
+├── bulk/                   # Bulk operations (schedule, invite, export)
 ├── calendar/               # Interviewer availability & scheduling
+├── calendarsync/           # Bidirectional Google Calendar / Outlook sync
 ├── candidate/              # Interview management & feedback
 ├── candidatefeedback/      # Candidate reverse feedback (interview experience)
+├── chatbot/                # AI-powered candidate Q&A chatbot
 ├── codeeditor/             # Real-time collaborative code editor
+├── codeexecution/          # Sandboxed Docker code execution engine
+├── compensation/           # AI salary recommendations (market data + internal benchmarks)
+├── common/                 # Shared utilities (PageResponse, PaginationUtil)
 ├── config/                 # App configuration (Async, Jackson, Dotenv)
+├── crdt/                   # CRDT collaborative document editing (conflict-free)
 ├── dashboard/              # Admin/Interviewer/Candidate dashboards
-├── document/               # File/Document management (AWS S3)
+├── dataresidency/          # Multi-region data routing (GDPR Article 44+)
+├── dei/                    # DEI/Diversity analytics (opt-in)
+├── document/               # File/Document management (AWS S3) + virus scanning
+├── encryption/             # Field-level AES-256-GCM encryption
 ├── event/                  # Domain events (Spring Events)
 ├── exception/              # Global exception handling
-├── exportimport/           # Export/Import jobs (CSV, JSON)
-├── meeting/                # Meeting link generation (Zoom, Google Meet)
-├── notification/           # Email, SMS, In-App, Kafka notifications
+├── exportimport/           # Export/Import jobs (CSV, JSON, Excel/XLSX)
+├── featureflags/           # Feature flags (LaunchDarkly, Flagsmith, Local)
+├── gdpr/                   # GDPR compliance (consent, export, erasure)
+├── graphql/                # GraphQL API (conditional, alongside REST)
+├── ipwhitelist/            # IP whitelisting per organization (CIDR support)
+├── jobboard/               # Public job board & candidate portal
+├── jobposition/            # Job position/opening management
+├── jobposting/             # Job board auto-posting (LinkedIn, Indeed, Glassdoor)
+├── marketplace/            # Skills assessment marketplace (HackerRank, Codility, etc.)
+├── meeting/                # Meeting link generation (Zoom, Google Meet, WebRTC)
+├── messaging/              # In-app messaging / chat (WebSocket + persistent)
+├── mobilesdk/              # Mobile SDK configuration & device registration
+├── notification/           # Email, SMS (Twilio), In-App, Push (FCM), Slack, Teams
+├── offer/                  # Offer letters + e-signatures (DocuSign, HelloSign)
 ├── pipeline/               # Hiring pipeline & candidate progression
+├── plagiarism/             # Code plagiarism detection (n-gram + Jaccard)
+├── predictive/             # Predictive analytics + attrition risk prediction
+├── pushnotification/       # Firebase Cloud Messaging (Android/iOS)
 ├── questionbank/           # Question bank with categories
+├── referral/               # Employee referral program with bonus tracking
+├── reminder/               # Scheduled interview reminders (24h, 1h, 15min)
+├── replay/                 # Interview session replay with timeline scrubbing
+├── report/                 # Analytics reports + PDF generation
+├── retention/              # Data retention policies (scheduled auto-purge)
+├── scheduling/             # Smart scheduling with AI time suggestions
 ├── scorecard/              # Evaluation scorecards & criteria
-├── security/               # Auth, JWT, OAuth2, RBAC
-├── template/               # Interview templates
+├── screeningbot/           # Automated async screening (AI evaluates responses)
+├── security/               # Auth, JWT, OAuth2, MFA, SAML SSO, API Keys, Rate Limiting, Lockout
+├── selfservice/            # Candidate self-service (preferred time slots)
+├── sentiment/              # Real-time sentiment analysis (engagement/confidence)
+├── slatracking/            # Recruiter SLA tracking (response time, workload, bottlenecks)
+├── sourcing/               # AI candidate sourcing (GitHub search + skill extraction)
+├── sourcetracking/         # Candidate source effectiveness tracking
+├── sso/                    # Enterprise SSO/SAML2 configuration
+├── tag/                    # Tagging/labeling system for entities
+├── talentmatch/            # Smart talent matching (AI candidate-job scoring)
+├── team/                   # Team/department organization
+├── template/               # Interview templates with question assignments
 ├── tenant/                 # Multi-tenant / Organization management
+├── testcases/              # Test case validation (HackerRank-style runner)
 ├── user/                   # User management, roles, permissions
-├── video/                  # Video recording integration (S3 storage)
-├── webhook/                # Webhook integrations (event notifications)
+├── video/                  # Video recording management
+├── webhook/                # Webhook integrations (HMAC-SHA256 signed)
+├── webrtc/                 # Native WebRTC signaling (built-in video)
 ├── whiteboard/             # Whiteboard collaboration (real-time drawing)
-└── websocket/              # WebSocket configuration
+├── websocket/              # WebSocket configuration (STOMP)
+└── workflow/               # Rule-based automation engine
 ```
 
 ---

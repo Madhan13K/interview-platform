@@ -155,6 +155,28 @@
 | 93 | Organization Billing | Per-org subscriptions, trials, upgrades, downgrades |
 | 94 | GST Invoicing | Indian tax-compliant invoices with GSTIN |
 | 95 | Payment Transactions | Full audit trail across all gateways |
+
+### AI & Intelligence (Phase 13) - DONE
+
+| # | Feature | Package | Status |
+|---|---------|---------|--------|
+| 96 | AI Interview Coach (real-time suggestions + bias alerts) | `aicoach` | DONE |
+| 97 | Smart Talent Matching (skills + experience + history) | `talentmatch` | DONE |
+| 98 | Automated Screening Bot (async text Q&A) | `screeningbot` | DONE |
+| 99 | Context-Aware Question Generator v2 | `ai/service` | DONE |
+| 100 | Real-time Sentiment Analysis | `sentiment` | DONE |
+| 101 | Compensation Intelligence (salary recommendations) | `compensation` | DONE |
+| 102 | Attrition Risk Prediction (6-month leaving risk) | `predictive` | DONE |
+| 103 | Interview Difficulty Calibration (adaptive) | `ai/service` | DONE |
+
+### Innovation Features (Phase 14) - DONE
+
+| # | Feature | Package | Status |
+|---|---------|---------|--------|
+| 104 | AI-Powered Scheduling (ML optimal times) | `aischeduling` | DONE |
+| 105 | CRDT Collaborative Editing (conflict-free) | `crdt` | DONE |
+| 106 | Interview Replay (timeline scrubbing) | `replay` | DONE |
+| 107 | Candidate Sourcing AI (GitHub search) | `sourcing` | DONE |
 | 66 | In-App Messaging / Chat | `messaging` | DONE |
 | 67 | Push Notifications (FCM) | `pushnotification` | DONE |
 | 68 | Data Retention Policies | `retention` | DONE |
