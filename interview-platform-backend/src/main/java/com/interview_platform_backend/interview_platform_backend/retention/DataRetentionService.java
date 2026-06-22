@@ -1,7 +1,5 @@
 package com.interview_platform_backend.interview_platform_backend.retention;
 
-import com.interview_platform_backend.interview_platform_backend.audit.entity.AuditLog;
-import com.interview_platform_backend.interview_platform_backend.audit.repository.AuditLogRepository;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

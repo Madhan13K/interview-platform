@@ -96,7 +96,7 @@ public class WebRTCSignalingService {
         signal.put("from", fromSession);
         messagingTemplate.convertAndSend(
                 "/topic/interview/" + roomId + "/signal/" + toSession,
-                signal
+                (Object) signal
         );
     }
 
@@ -105,9 +105,13 @@ public class WebRTCSignalingService {
      */
     public void relayIceCandidate(String roomId, String fromSession, String toSession, Map<String, Object> candidate) {
         candidate.put("from", fromSession);
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("type", "ice-candidate");
+        payload.put("candidate", candidate);
+        payload.put("from", fromSession);
         messagingTemplate.convertAndSend(
                 "/topic/interview/" + roomId + "/signal/" + toSession,
-                Map.of("type", "ice-candidate", "candidate", candidate, "from", fromSession)
+                (Object) payload
         );
     }
 
@@ -138,7 +142,7 @@ public class WebRTCSignalingService {
     }
 
     private void broadcastToRoom(String roomId, String excludeSession, Map<String, Object> message) {
-        messagingTemplate.convertAndSend("/topic/interview/" + roomId + "/signal", message);
+        messagingTemplate.convertAndSend("/topic/interview/" + roomId + "/signal", (Object) message);
     }
 
     public record ParticipantInfo(String userId, String displayName, String roomId) {}

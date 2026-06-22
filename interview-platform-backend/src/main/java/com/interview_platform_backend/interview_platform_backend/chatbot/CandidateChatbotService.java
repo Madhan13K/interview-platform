@@ -145,7 +145,7 @@ public class CandidateChatbotService {
 
     private String buildCandidateContext(UUID candidateId) {
         try {
-            long interviewCount = interviewRepository.countByCandidateId(candidateId);
+            long interviewCount = interviewRepository.findByCandidateId(candidateId).size();
             return "Candidate has " + interviewCount + " interviews in the system.";
         } catch (Exception e) {
             return "No specific context available.";

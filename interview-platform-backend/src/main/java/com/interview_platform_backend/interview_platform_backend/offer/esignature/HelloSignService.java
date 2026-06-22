@@ -47,12 +47,12 @@ public class HelloSignService implements ESignatureService {
             String credentials = Base64.getEncoder().encodeToString((apiKey + ":").getBytes());
 
             Map<String, Object> requestBody = Map.of(
-                    "title", "Offer Letter - " + offerLetter.getCandidateEmail(),
+                    "title", "Offer Letter - " + offerLetter.getCandidate().getEmail(),
                     "subject", "Your offer letter is ready for signing",
                     "message", "Please review and sign your offer letter.",
                     "signers", List.of(Map.of(
-                            "email_address", offerLetter.getCandidateEmail(),
-                            "name", offerLetter.getCandidateEmail(),
+                            "email_address", offerLetter.getCandidate().getEmail(),
+                            "name", offerLetter.getCandidate().getEmail(),
                             "order", 0
                     )),
                     "test_mode", !enabled // Use test mode if not fully enabled

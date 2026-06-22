@@ -1,13 +1,15 @@
 package com.interview_platform_backend.interview_platform_backend.chatbot;
 
-import com.interview_platform_backend.interview_platform_backend.security.jwt.CustomUserDetails;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/chatbot")
@@ -23,7 +25,7 @@ public class CandidateChatbotController {
     @PostMapping("/message")
     public ResponseEntity<CandidateChatbotService.ChatResponse> sendMessage(
             @RequestBody Map<String, Object> request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails) {
 
         String message = (String) request.get("message");
         List<Map<String, String>> historyRaw = (List<Map<String, String>>) request.get("history");
@@ -33,7 +35,7 @@ public class CandidateChatbotController {
                         .map(m -> new CandidateChatbotService.ChatMessage(m.get("role"), m.get("content")))
                         .toList() : List.of();
 
-        var response = chatbotService.processMessage(userDetails.getUserId(), message, history);
+        var response = chatbotService.processMessage(UUID.fromString(userDetails.getUsername()), message, history);
         return ResponseEntity.ok(response);
     }
 }

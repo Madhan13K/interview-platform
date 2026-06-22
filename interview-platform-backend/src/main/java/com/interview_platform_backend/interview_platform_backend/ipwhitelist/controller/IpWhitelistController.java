@@ -2,7 +2,7 @@ package com.interview_platform_backend.interview_platform_backend.ipwhitelist.co
 
 import com.interview_platform_backend.interview_platform_backend.ipwhitelist.entity.IpWhitelistEntry;
 import com.interview_platform_backend.interview_platform_backend.ipwhitelist.service.IpWhitelistService;
-import com.interview_platform_backend.interview_platform_backend.security.jwt.CustomUserDetails;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,12 +28,12 @@ public class IpWhitelistController {
     public ResponseEntity<IpWhitelistEntry> addEntry(
             @PathVariable UUID orgId,
             @RequestBody Map<String, String> request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails) {
         IpWhitelistEntry entry = ipWhitelistService.addEntry(
                 orgId,
                 request.get("ipAddress"),
                 request.get("description"),
-                userDetails.getUserId()
+                UUID.fromString(userDetails.getUsername())
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(entry);
     }

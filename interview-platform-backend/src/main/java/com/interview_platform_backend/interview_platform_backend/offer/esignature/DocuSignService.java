@@ -55,9 +55,9 @@ public class DocuSignService implements ESignatureService {
         try {
             // Create envelope with document and recipient
             String documentBase64 = Base64.getEncoder().encodeToString(
-                    ("Offer Letter for " + offerLetter.getCandidateEmail() + 
+                    ("Offer Letter for " + offerLetter.getCandidate().getEmail() + 
                      "\nPosition: " + (offerLetter.getJobPosition() != null ? offerLetter.getJobPosition().getTitle() : "N/A") +
-                     "\nSalary: " + offerLetter.getSalary() +
+                     "\nSalary: " + offerLetter.getSalaryOffered() +
                      "\nStart Date: " + offerLetter.getStartDate()
                     ).getBytes()
             );
@@ -72,8 +72,8 @@ public class DocuSignService implements ESignatureService {
                     )),
                     "recipients", Map.of(
                             "signers", List.of(Map.of(
-                                    "email", offerLetter.getCandidateEmail(),
-                                    "name", offerLetter.getCandidateEmail(),
+                                    "email", offerLetter.getCandidate().getEmail(),
+                                    "name", offerLetter.getCandidate().getEmail(),
                                     "recipientId", "1",
                                     "routingOrder", "1",
                                     "tabs", Map.of(
