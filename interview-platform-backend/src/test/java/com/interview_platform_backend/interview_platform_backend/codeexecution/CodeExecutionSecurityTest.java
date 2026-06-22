@@ -169,7 +169,7 @@ class CodeExecutionSecurityTest {
     private boolean containsDangerousPatterns(String code) {
         String lower = code.toLowerCase();
         String[] dangerousPatterns = {
-                "os.fork", "subprocess", "socket.socket", "net.connect",
+                "os.fork", "subprocess", "socket.socket", "net').connect", "net.connect",
                 "/etc/passwd", "/etc/shadow", ".ssh/", "rm -rf",
                 "exec(", "system(", "fork(", ":(){ :|:& };:",
                 "openconnection", "fetch('http", "readfilesync('/etc",

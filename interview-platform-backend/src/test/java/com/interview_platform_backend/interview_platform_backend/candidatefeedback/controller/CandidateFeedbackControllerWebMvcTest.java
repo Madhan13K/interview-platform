@@ -96,7 +96,7 @@ class CandidateFeedbackControllerWebMvcTest {
             mockMvc.perform(post("/api/v1/candidate-feedback")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(FEEDBACK_ID.toString()))
                     .andExpect(jsonPath("$.interviewId").value(INTERVIEW_ID.toString()))
                     .andExpect(jsonPath("$.overallRating").value(4))

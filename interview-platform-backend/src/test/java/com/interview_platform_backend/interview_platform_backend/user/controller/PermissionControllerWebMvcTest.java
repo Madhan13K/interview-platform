@@ -55,7 +55,7 @@ class PermissionControllerWebMvcTest {
         mockMvc.perform(post("/api/v1/permissions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         verify(permissionService).createPermission(org.mockito.ArgumentMatchers.any());
     }

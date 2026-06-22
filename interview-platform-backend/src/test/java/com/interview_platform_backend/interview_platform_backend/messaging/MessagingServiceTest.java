@@ -1,27 +1,22 @@
 package com.interview_platform_backend.interview_platform_backend.messaging;
 
-import com.interview_platform_backend.interview_platform_backend.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Sprint 2: Messaging Persistence + WebSocket Tests
+ * Sprint 2: Messaging Entity Structure Tests (Unit - no Spring context needed)
  */
-@SpringBootTest
-@ActiveProfiles("integration")
-@DisplayName("Messaging Service Integration Tests")
-class MessagingServiceTest extends AbstractIntegrationTest {
+@DisplayName("Messaging Service Tests")
+class MessagingServiceTest {
 
     @Test
-    @DisplayName("Should create direct conversation between two users")
+    @DisplayName("Should verify Conversation entity exists with correct structure")
     void shouldCreateDirectConversation() {
-        // Messaging module is newly created - verify entity structure compiles
         assertNotNull(com.interview_platform_backend.interview_platform_backend.messaging.entity.Conversation.class);
-        assertNotNull(com.interview_platform_backend.interview_platform_backend.messaging.entity.Message.class);
+        assertNotNull(com.interview_platform_backend.interview_platform_backend.messaging.entity.Conversation.ConversationType.DIRECT);
+        assertNotNull(com.interview_platform_backend.interview_platform_backend.messaging.entity.Conversation.ConversationType.GROUP);
     }
 
     @Test
@@ -29,10 +24,11 @@ class MessagingServiceTest extends AbstractIntegrationTest {
     void messageShouldHaveRequiredFields() throws Exception {
         var fields = com.interview_platform_backend.interview_platform_backend.messaging.entity.Message.class.getDeclaredFields();
         var fieldNames = java.util.Arrays.stream(fields).map(java.lang.reflect.Field::getName).toList();
-        assertTrue(fieldNames.contains("content"));
-        assertTrue(fieldNames.contains("conversation"));
-        assertTrue(fieldNames.contains("sender"));
-        assertTrue(fieldNames.contains("type"));
-        assertTrue(fieldNames.contains("createdAt"));
+        assertTrue(fieldNames.contains("content"), "Must have content field");
+        assertTrue(fieldNames.contains("conversation"), "Must have conversation field");
+        assertTrue(fieldNames.contains("sender"), "Must have sender field");
+        assertTrue(fieldNames.contains("type"), "Must have type field");
+        assertTrue(fieldNames.contains("createdAt"), "Must have createdAt field");
+        assertTrue(fieldNames.contains("parentMessageId"), "Must have parentMessageId for threading");
     }
 }

@@ -83,7 +83,7 @@ class VideoRecordingControllerWebMvcTest {
             mockMvc.perform(post("/api/v1/video-recordings/start")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(RECORDING_ID.toString()))
                     .andExpect(jsonPath("$.interviewId").value(INTERVIEW_ID.toString()))
                     .andExpect(jsonPath("$.status").value("PROCESSING"))

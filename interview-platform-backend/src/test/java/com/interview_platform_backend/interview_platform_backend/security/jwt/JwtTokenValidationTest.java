@@ -229,7 +229,7 @@ class JwtTokenValidationTest {
             var claims = Jwts.parser().verifyWith(secretKey).build()
                     .parseSignedClaims(token).getPayload();
 
-            assertEquals("", claims.getSubject());
+            assertNull(claims.getSubject(), "Empty string subject stored as null by jjwt");
         }
     }
 

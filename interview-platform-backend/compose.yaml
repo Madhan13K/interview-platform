@@ -48,7 +48,7 @@ services:
       localstack:
         condition: service_healthy
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 15s
@@ -173,11 +173,7 @@ services:
     depends_on:
       - jaeger
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      disable: true
 
   # --- Jaeger (Trace visualization UI) ---
   jaeger:

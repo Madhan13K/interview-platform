@@ -83,7 +83,7 @@ class WebhookControllerWebMvcTest {
             mockMvc.perform(post("/api/v1/webhooks")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(webhookId.toString()))
                     .andExpect(jsonPath("$.url").value("https://example.com/webhook"))
                     .andExpect(jsonPath("$.events").isArray())

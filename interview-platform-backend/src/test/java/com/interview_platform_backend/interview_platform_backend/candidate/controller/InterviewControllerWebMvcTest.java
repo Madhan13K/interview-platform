@@ -107,7 +107,7 @@ class InterviewControllerWebMvcTest {
         mockMvc.perform(post("/api/v1/interviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Technical Interview"))
                 .andExpect(jsonPath("$.status").value("SCHEDULED"));
     }

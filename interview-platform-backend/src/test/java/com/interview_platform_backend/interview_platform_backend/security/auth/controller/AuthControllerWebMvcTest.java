@@ -63,7 +63,7 @@ class AuthControllerWebMvcTest {
                                   "password": "Password@123"
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").value("access-jwt"))
                 .andExpect(jsonPath("$.refreshToken").value("refresh-jwt"));
 
@@ -135,7 +135,7 @@ class AuthControllerWebMvcTest {
                                   "password": "Password@123"
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").value("access-jwt"));
     }
 

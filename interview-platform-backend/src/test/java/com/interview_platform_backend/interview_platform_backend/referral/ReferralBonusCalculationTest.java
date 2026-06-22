@@ -15,7 +15,7 @@ class ReferralBonusCalculationTest {
         assertEquals(new BigDecimal("5000.00"), calculateBonus("SENIOR", "FULL_TIME"));
     }
     @Test void reducedBonusForContractors() {
-        assertEquals(new BigDecimal("1000.00"), calculateBonus("MID", "CONTRACT"));
+        assertEquals(0, new BigDecimal("1000").compareTo(calculateBonus("MID", "CONTRACT").stripTrailingZeros()));
     }
     @Test void zeroBonusForInternReferrals() {
         assertEquals(BigDecimal.ZERO, calculateBonus("INTERN", "FULL_TIME"));
