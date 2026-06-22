@@ -1,0 +1,62 @@
+# Render.com Deployment Configuration
+# Deploy: Connect GitHub repo at render.com/dashboard
+
+services:
+  # Backend API
+  - type: web
+    name: interview-platform-backend
+    runtime: docker
+    dockerfilePath: interview-platform-backend/Dockerfile
+    envVars:
+      - key: DB_URL
+        fromDatabase:
+          name: interview-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: interview-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: interview-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          name: interview-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: interview-redis
+          type: redis
+          property: port
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://interview-platform-frontend.onrender.com
+      - key: KAFKA_ENABLED
+        value: "false"
+      - key: SMS_ENABLED
+        value: "false"
+    healthCheckPath: /actuator/health
+
+  # Frontend
+  - type: web
+    name: interview-platform-frontend
+    runtime: docker
+    dockerfilePath: interview-platform-frontend/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://interview-platform-backend.onrender.com
+
+databases:
+  - name: interview-db
+    plan: free
+    databaseName: interview_platform
+    user: admin
+
+  - name: interview-redis
+    plan: free
+    type: redis

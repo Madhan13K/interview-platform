@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp/
+
+# Build
+.next/
+out/
+target/
+*.jar
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test
+coverage/
+*.lcov
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+.vercel
+.turbo
+
+# Security - NEVER commit production private keys
+# Dev keys are acceptable but prod keys MUST come from Vault
+# interview-platform-backend/src/main/resources/certs/private.pem is DEV ONLY
+*.prod.pem
+**/secrets/
+**/vault-data/

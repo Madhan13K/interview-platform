@@ -1,0 +1,13 @@
+# Vercel Deployment Configuration (Frontend Only)
+# Deploy: Connect GitHub repo at vercel.com/import
+
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm ci",
+  "devCommand": "npm run dev",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://interview-platform-backend.up.railway.app"
+  }
+}
