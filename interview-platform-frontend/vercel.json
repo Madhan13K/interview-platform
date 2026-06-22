@@ -1,6 +1,3 @@
-# Vercel Deployment Configuration (Frontend Only)
-# Deploy: Connect GitHub repo at vercel.com/import
-
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
