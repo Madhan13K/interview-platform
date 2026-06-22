@@ -146,7 +146,6 @@ jobs:
     name: Frontend - E2E Tests (Playwright)
     runs-on: ubuntu-latest
     needs: [backend-build, frontend-build]
-    continue-on-error: true
     timeout-minutes: 30
     services:
       postgres:
@@ -212,6 +211,13 @@ jobs:
         working-directory: interview-platform-frontend
         run: npm ci
 
+      - name: Seed test data
+        run: |
+          chmod +x scripts/seed-test-data.sh
+          bash scripts/seed-test-data.sh
+        env:
+          BASE_URL: http://localhost:8080
+
       - name: Install Playwright browsers
         working-directory: interview-platform-frontend
         run: npx playwright install --with-deps chromium
@@ -229,6 +235,13 @@ jobs:
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:8080
         run: npx playwright test --project=chromium --reporter=github
+
+      - name: Cleanup test data
+        if: always()
+        run: |
+          echo "Stopping backend..."
+          pkill -f "spring-boot:run" || true
+          echo "CI database will be destroyed with the job container."
 
       - name: Upload Playwright report
         if: always()
