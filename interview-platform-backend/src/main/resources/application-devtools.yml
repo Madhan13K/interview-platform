@@ -1,0 +1,22 @@
+# Hot Module Replacement - Spring Boot DevTools + LiveReload
+# Activate: ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,devtools
+
+spring:
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+      exclude: static/**,public/**
+      poll-interval: 2s
+      quiet-period: 1s
+    livereload:
+      enabled: true
+      port: 35729
+
+  # Disable template caching for live editing
+  thymeleaf:
+    cache: false
+
+logging:
+  level:
+    org.springframework.boot.devtools: DEBUG

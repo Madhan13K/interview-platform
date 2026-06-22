@@ -1,0 +1,34 @@
+{
+  "name": "Interview Platform Dev Environment",
+  "dockerComposeFile": "../interview-platform-backend/compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "21", "installMaven": true },
+    "ghcr.io/devcontainers/features/node:1": { "version": "18" },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [3000, 8080, 5433, 6379, 4566, 9090, 3001],
+  "postCreateCommand": "cd interview-platform-backend && ./mvnw compile -DskipTests && cd ../interview-platform-frontend && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "humao.rest-client",
+        "GraphQL.vscode-graphql"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[java]": { "editor.defaultFormatter": "redhat.java" }
+      }
+    }
+  }
+}

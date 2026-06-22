@@ -129,6 +129,41 @@
 | 72 | Job Board Auto-Posting | `jobposting` | DONE |
 | 73 | Recruiter SLA Tracking | `slatracking` | DONE |
 | 74 | Feature Flags (LaunchDarkly/Flagsmith/Local) | `featureflags` | DONE |
+| 75 | Multi-Gateway Billing (Stripe+Razorpay+PayU+Cashfree+PhonePe) | `billing` | DONE |
+| 76 | GraphQL API | `graphql` | DONE (conditional) |
+| 77 | Predictive Analytics | `predictive` | DONE |
+| 78 | Candidate Chatbot (OpenAI) | `chatbot` | DONE |
+| 79 | Native WebRTC Video | `webrtc` | DONE |
+| 80 | Plagiarism Detection | `plagiarism` | DONE |
+| 81 | Test Case Validation (HackerRank-style) | `testcases` | DONE |
+| 82 | Multi-Region Data Residency | `dataresidency` | DONE |
+| 83 | Mobile SDK Config | `mobilesdk` | DONE |
+| 84 | AI Interview Scoring | `aiscoring` | DONE |
+| 85 | Skills Assessment Marketplace | `marketplace` | DONE |
+
+### Payment System (Phase 12) - DONE
+
+| # | Feature | Details |
+|---|---------|---------|
+| 86 | Multi-Gateway Architecture | Unified `PaymentGatewayProvider` interface |
+| 87 | Stripe (International) | Cards, ACH, SEPA, subscriptions |
+| 88 | Razorpay (India) | UPI, Cards, NetBanking, Wallets, EMI, HMAC verification |
+| 89 | PayU (India) | UPI, Cards, NetBanking, BNPL, SHA-512 hash verification |
+| 90 | Cashfree (India) | UPI, Cards, PayLater, EMI, webhook verification |
+| 91 | PhonePe (India) | UPI, Cards, Wallets, SHA-256 checksum |
+| 92 | Subscription Plans | Free / Starter ($49/₹3,999) / Pro ($149/₹11,999) / Enterprise ($399/₹32,999) |
+| 93 | Organization Billing | Per-org subscriptions, trials, upgrades, downgrades |
+| 94 | GST Invoicing | Indian tax-compliant invoices with GSTIN |
+| 95 | Payment Transactions | Full audit trail across all gateways |
+| 66 | In-App Messaging / Chat | `messaging` | DONE |
+| 67 | Push Notifications (FCM) | `pushnotification` | DONE |
+| 68 | Data Retention Policies | `retention` | DONE |
+| 69 | IP Whitelisting per Org | `ipwhitelist` | DONE |
+| 70 | Background Check (Checkr/Sterling) | `backgroundcheck` | DONE |
+| 71 | ATS Integration (Greenhouse/Lever/Workday) | `atsintegration` | DONE |
+| 72 | Job Board Auto-Posting | `jobposting` | DONE |
+| 73 | Recruiter SLA Tracking | `slatracking` | DONE |
+| 74 | Feature Flags (LaunchDarkly/Flagsmith/Local) | `featureflags` | DONE |
 | 75 | Billing / Subscriptions (Stripe) | `billing` | DONE |
 | 76 | GraphQL API | `graphql` | DONE (conditional) |
 | 77 | Predictive Analytics | `predictive` | DONE |
