@@ -1314,7 +1314,187 @@ open http://localhost:8080/swagger-ui.html
 | `ENCRYPTION_SECRET_KEY`  | AES-256 key (base64, 32 bytes)        | (dev key if not set)     |
 | `OTEL_SERVICE_NAME`      | OpenTelemetry service name            | `interview-platform-backend` |
 | `VAULT_TOKEN`            | HashiCorp Vault token                 | `dev-root-token`         |
+| `OPENAI_API_KEY`         | OpenAI API key (for 13 AI services)   | (mock fallback)          |
+| `RAZORPAY_KEY_ID`        | Razorpay key ID (India payments)      | (disabled if empty)      |
+| `RAZORPAY_KEY_SECRET`    | Razorpay key secret                   | (disabled if empty)      |
+| `STRIPE_SECRET_KEY`      | Stripe secret key (international)     | (disabled if empty)      |
+| `TWILIO_ACCOUNT_SID`     | Twilio SID (SMS)                      | (logs only if empty)     |
+| `TWILIO_AUTH_TOKEN`       | Twilio auth token                     | (logs only if empty)     |
+| `FIREBASE_CREDENTIALS_PATH` | Firebase service account JSON       | (push disabled if empty) |
+| `GITHUB_TOKEN`           | GitHub PAT (candidate sourcing)       | (sourcing disabled)      |
 
 ---
 
-*Last updated: 2025-01-15. Generated from source code analysis.*
+## 9. Newly Implemented Modules — Technical Deep Dive
+
+### 9.1 AI Interview Coach (`aicoach/AIInterviewCoachService.java`)
+
+**How it works:**
+1. During a live interview session, the frontend periodically sends the last N seconds of transcript to the coach endpoint
+2. The service analyzes the transcript for:
+   - **Bias patterns**: Regex matching for leading questions, gendered language, demographic queries
+   - **Time tracking**: Compares elapsed vs total minutes, alerts when running over
+   - **Competency coverage**: Checks which required competencies have been discussed
+3. If OpenAI API key is configured, generates contextual follow-up questions using GPT-4o-mini
+4. Returns a `CoachingSuggestion` object via WebSocket to the interviewer (not visible to candidate)
+
+**Data flow:**
+```
+Frontend (interviewer) → WebSocket transcript chunk → AIInterviewCoachService
+→ Bias Detection (regex) + Time Check (arithmetic) + OpenAI (follow-ups)
+→ CoachingSuggestion → WebSocket push to interviewer only
+```
+
+**Key method:** `generateSuggestion(transcript, jobTitle, competencies, elapsedMin, totalMin)`
+
+---
+
+### 9.2 Smart Talent Matching (`talentmatch/SmartTalentMatchService.java`)
+
+**How it works:**
+1. Takes a job position ID and retrieves requirements (skills, level, department)
+2. Fetches all active candidates from the database
+3. Scores each candidate on 3 dimensions:
+   - **Skill match (50%)**: Keyword overlap between required skills and candidate profile
+   - **Experience level (30%)**: Alignment between required level and candidate experience
+   - **Historical fit (20%)**: How similar profiles performed in past hires for same department
+4. Returns top N candidates sorted by overall score
+
+**Scoring algorithm:**
+```
+overallScore = (skillScore × 0.5) + (levelScore × 0.3) + (historyScore × 0.2)
+```
+
+**Key method:** `matchCandidatesToJob(jobPositionId, maxResults)`
+
+---
+
+### 9.3 Automated Screening Bot (`screeningbot/AutomatedScreeningService.java`)
+
+**How it works:**
+1. **Question Generation**: Given a job title + requirements, generates screening questions (AI or fallback templates)
+2. **Async Flow**: Candidate receives questions via email/portal, answers at their own pace
+3. **Evaluation**: Once all answers submitted, AI evaluates responses and assigns:
+   - Score (1-10)
+   - Recommendation: PASS / FAIL / REVIEW
+   - Strengths and concerns list
+4. Recruiter reviews only REVIEW cases; PASS auto-advances in pipeline
+
+**Evaluation methods:**
+- With OpenAI: Full contextual evaluation with structured JSON output
+- Without OpenAI: Rule-based (checks response length, required fields, patterns)
+
+---
+
+### 9.4 CRDT Collaborative Editing (`crdt/CRDTDocumentService.java`)
+
+**How it works:**
+- Implements a **Replicated Growable Array (RGA)** — a CRDT data structure
+- Each character has a unique ID: `siteId + lamportTimestamp`
+- Operations are **commutative** (order doesn't matter) and **idempotent** (applying twice is safe)
+- Two operation types: `INSERT(charId, character, afterId)` and `DELETE(charId)`
+
+**Why CRDT over OT:**
+- No central server needed for conflict resolution
+- Operations can arrive in any order and still converge
+- Works with intermittent connectivity
+- Simpler implementation than full Operational Transform
+
+**WebSocket integration:**
+```
+Client A types 'x' → sends INSERT op → broadcasts to /topic/document/{id}/ops
+Client B receives op → applies locally → document converges
+```
+
+---
+
+### 9.5 Multi-Gateway Payment System (`billing/gateway/`)
+
+**Architecture:**
+```
+PaymentGatewayProvider (interface)
+├── RazorpayGateway.java    — HMAC-SHA256 signature verification
+├── PayUGateway.java        — SHA-512 hash (forward + reverse)
+├── CashfreeGateway.java    — x-api-version header, webhook status check
+├── PhonePeGateway.java     — SHA-256 checksum + base64 payload
+└── (Stripe in BillingService.java — form-encoded API)
+```
+
+**Payment flow (Razorpay example):**
+1. Frontend calls `POST /api/v1/billing/razorpay/order` → backend creates Razorpay order
+2. Frontend opens Razorpay checkout modal with order ID
+3. Candidate pays via UPI/Card/NetBanking
+4. Razorpay redirects to callback URL with `razorpay_payment_id` + `razorpay_signature`
+5. Backend verifies: `HMAC-SHA256(order_id|payment_id, key_secret) == signature`
+6. If valid → update subscription status to ACTIVE, create invoice
+
+**Gateway selection logic:**
+- If customer is in India and currency is INR → use Razorpay (or PayU/Cashfree/PhonePe based on config)
+- If customer is international → use Stripe
+- Each gateway is `@ConditionalOnProperty` — only loads if `enabled=true`
+
+---
+
+### 9.6 Difficulty Calibration (`ai/service/DifficultyCalibrationService.java`)
+
+**Algorithm (simplified Item Response Theory):**
+
+```
+abilityEstimate = Σ(score × difficultyWeight × recencyWeight) / Σ(weights)
+
+difficultyWeight: EASY=0.5, MEDIUM=1.0, HARD=1.5, EXPERT=2.0
+recencyWeight: increases linearly for more recent questions (later = more weight)
+```
+
+**Decision rules:**
+- `abilityEstimate >= 0.8` → next question = EXPERT
+- `abilityEstimate >= 0.6` → next question = HARD
+- `abilityEstimate >= 0.4` → next question = MEDIUM
+- `abilityEstimate < 0.4` → next question = EASY
+- Override: 3 consecutive failures → force step down
+- Override: 3 consecutive successes → force step up
+
+---
+
+### 9.7 Compensation Intelligence (`compensation/CompensationIntelligenceService.java`)
+
+**Data sources:**
+1. **Market data** (built-in): Salary ranges by level × region (US/IN/EU), from Junior to Principal
+2. **Internal data** (from DB): Average accepted offers for same department
+3. **Blended recommendation**: 60% market + 40% internal
+
+**Output:**
+```json
+{
+  "currency": "INR",
+  "recommendedMin": 2500000,
+  "recommendedTarget": 3500000,
+  "recommendedMax": 5000000,
+  "marketMin": 2500000,
+  "marketMax": 5000000,
+  "internalAverage": 3200000,
+  "percentile": 62.5,
+  "rating": "COMPETITIVE"
+}
+```
+
+---
+
+### 9.8 Interview Replay (`replay/InterviewReplayService.java`)
+
+**How it works:**
+1. Queries all event sources for a given interview ID:
+   - `CodingSession` table → code changes over time
+   - `WhiteboardStroke` table → drawing events
+   - `InterviewFeedBack` table → feedback submission timestamps
+2. Merges all events into a unified timeline sorted by timestamp
+3. Frontend player can scrub to any point and see the state at that moment
+
+**Timeline event types:**
+- `CODE_CHANGE` — code editor content at a point in time
+- `WHITEBOARD_STROKE` — drawing stroke (tool, color, points)
+- `FEEDBACK_SUBMITTED` — when interviewer submitted their evaluation
+
+---
+
+*Last updated: 2026-06-22. Updated with Phase 9-14 features.*
