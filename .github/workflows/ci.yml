@@ -782,13 +782,13 @@ jobs:
           k6 version
 
       - name: Run rate limiter stress test
-        run: k6 run load-tests/rate-limiter-stress.js
+        run: k6 run tests/load/rate-limiter-stress.js
         continue-on-error: true
         env:
           BASE_URL: http://localhost:8080
 
       - name: Run bulk schedule test (reduced)
-        run: k6 run --vus 5 --iterations 50 load-tests/bulk-schedule.js
+        run: k6 run --vus 5 --iterations 50 tests/load/bulk-schedule.js
         continue-on-error: true
         env:
           BASE_URL: http://localhost:8080
@@ -798,7 +798,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: k6-load-test-results
-          path: load-tests/
+          path: tests/load/
 
   # ==========================================================================
   # Stage 12: Pipeline Summary
