@@ -32,8 +32,8 @@ public class OutlookCalendarProvider implements CalendarProviderService {
     @Value("${spring.security.oauth2.client.registration.microsoft.client-secret}")
     private String clientSecret;
 
-    public OutlookCalendarProvider(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.build();
+    public OutlookCalendarProvider() {
+        this.restClient = RestClient.create();
     }
 
     @Override

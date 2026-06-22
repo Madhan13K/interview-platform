@@ -45,3 +45,5 @@ docker-compose.override.yml
 *.prod.pem
 **/secrets/
 **/vault-data/
+CREDENTIALS.md
+.credentials*

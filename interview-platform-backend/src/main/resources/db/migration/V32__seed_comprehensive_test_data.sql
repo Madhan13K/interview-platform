@@ -106,7 +106,7 @@ AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'Tell me about a challengi
 
 INSERT INTO questions (id, title, description, category_id, difficulty, type, expected_duration_minutes, tags, is_active, created_at)
 SELECT gen_random_uuid(), 'React Virtual DOM', 'Explain how React Virtual DOM works and why it improves performance.',
-       c.id, 'MEDIUM', 'TECHNICAL', 10, 'react,performance,dom', true, NOW()
+       c.id, 'MEDIUM', 'THEORETICAL', 10, 'react,performance,dom', true, NOW()
 FROM question_categories c WHERE c.name = 'Frontend'
 AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'React Virtual DOM');
 
@@ -119,31 +119,31 @@ AND NOT EXISTS (SELECT 1 FROM questions WHERE title = 'Binary Tree Level Order T
 -- ─────────────────────────────────────────────────────────────
 -- Job Positions
 -- ─────────────────────────────────────────────────────────────
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'Senior Backend Engineer', 'Engineering', 
        'Build scalable microservices with Java/Spring Boot', 'Java, Spring Boot, PostgreSQL, Kafka, 5+ years',
-       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '$150,000 - $200,000',
+       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '150000', '200000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'Senior Backend Engineer');
 
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'Frontend Developer', 'Engineering',
        'Build beautiful UIs with React and TypeScript', 'React, TypeScript, CSS, 3+ years',
-       'San Francisco, CA', 'OPEN', 'FULL_TIME', 'MID', '$120,000 - $160,000',
+       'San Francisco, CA', 'OPEN', 'FULL_TIME', 'MID', '120000', '160000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'Frontend Developer');
 
-INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_range, created_by, created_at)
+INSERT INTO job_positions (id, title, department, description, requirements, location, status, employment_type, experience_level, salary_min, salary_max, created_by, created_at)
 SELECT gen_random_uuid(), 'DevOps Engineer', 'Infrastructure',
        'Manage Kubernetes clusters and CI/CD pipelines', 'Kubernetes, AWS, Terraform, Docker, 4+ years',
-       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '$140,000 - $180,000',
+       'Remote', 'OPEN', 'FULL_TIME', 'SENIOR', '140000', '180000',
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM job_positions WHERE title = 'DevOps Engineer');
 
 -- ─────────────────────────────────────────────────────────────
 -- Interviews (past and upcoming)
 -- ─────────────────────────────────────────────────────────────
-INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by_id, start_time, end_time, time_zone, created_at)
+INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by, start_time, end_time, time_zone, created_at)
 SELECT gen_random_uuid(), 'Technical Screen - Charlie', 'First round technical interview',
        'COMPLETED', 'TECHNICAL', 'VIDEO',
        (SELECT id FROM users WHERE email = 'charlie.brown@test.com' LIMIT 1),
@@ -151,7 +151,7 @@ SELECT gen_random_uuid(), 'Technical Screen - Charlie', 'First round technical i
        NOW() - INTERVAL '7 days', NOW() - INTERVAL '7 days' + INTERVAL '60 minutes', 'America/New_York', NOW() - INTERVAL '10 days'
 WHERE NOT EXISTS (SELECT 1 FROM interviews WHERE title = 'Technical Screen - Charlie');
 
-INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by_id, start_time, end_time, time_zone, created_at)
+INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by, start_time, end_time, time_zone, created_at)
 SELECT gen_random_uuid(), 'System Design - Diana', 'System design round',
        'SCHEDULED', 'SYSTEM_DESIGN', 'VIDEO',
        (SELECT id FROM users WHERE email = 'diana.lee@test.com' LIMIT 1),
@@ -159,7 +159,7 @@ SELECT gen_random_uuid(), 'System Design - Diana', 'System design round',
        NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days' + INTERVAL '90 minutes', 'America/Los_Angeles', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM interviews WHERE title = 'System Design - Diana');
 
-INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by_id, start_time, end_time, time_zone, created_at)
+INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by, start_time, end_time, time_zone, created_at)
 SELECT gen_random_uuid(), 'Behavioral - Eve', 'Final behavioral round',
        'SCHEDULED', 'BEHAVIORAL', 'VIDEO',
        (SELECT id FROM users WHERE email = 'eve.davis@test.com' LIMIT 1),
@@ -167,30 +167,13 @@ SELECT gen_random_uuid(), 'Behavioral - Eve', 'Final behavioral round',
        NOW() + INTERVAL '5 days', NOW() + INTERVAL '5 days' + INTERVAL '45 minutes', 'America/Chicago', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM interviews WHERE title = 'Behavioral - Eve');
 
-INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by_id, start_time, end_time, time_zone, created_at)
+INSERT INTO interviews (id, title, description, status, type, mode, candidate_id, scheduled_by, start_time, end_time, time_zone, created_at)
 SELECT gen_random_uuid(), 'Coding Challenge - Charlie', 'Live coding assessment',
        'COMPLETED', 'CODING', 'VIDEO',
        (SELECT id FROM users WHERE email = 'charlie.brown@test.com' LIMIT 1),
        (SELECT id FROM users WHERE email = 'frank.wilson@test.com' LIMIT 1),
        NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days' + INTERVAL '60 minutes', 'America/New_York', NOW() - INTERVAL '5 days'
 WHERE NOT EXISTS (SELECT 1 FROM interviews WHERE title = 'Coding Challenge - Charlie');
-
--- ─────────────────────────────────────────────────────────────
--- Interview Feedback (for completed interviews)
--- ─────────────────────────────────────────────────────────────
-INSERT INTO interview_feedback (id, interview_id, interviewer_id, rating, recommendation, strengths, weaknesses, comments, submitted_at)
-SELECT gen_random_uuid(),
-       (SELECT id FROM interviews WHERE title = 'Technical Screen - Charlie' LIMIT 1),
-       (SELECT id FROM users WHERE email = 'alice.johnson@test.com' LIMIT 1),
-       4, 'HIRE', 'Strong algorithmic thinking, clean code', 'Could improve system design knowledge', 'Good candidate for mid-level position', NOW() - INTERVAL '6 days'
-WHERE NOT EXISTS (SELECT 1 FROM interview_feedback WHERE comments = 'Good candidate for mid-level position');
-
-INSERT INTO interview_feedback (id, interview_id, interviewer_id, rating, recommendation, strengths, weaknesses, comments, submitted_at)
-SELECT gen_random_uuid(),
-       (SELECT id FROM interviews WHERE title = 'Coding Challenge - Charlie' LIMIT 1),
-       (SELECT id FROM users WHERE email = 'bob.smith@test.com' LIMIT 1),
-       5, 'STRONG_HIRE', 'Excellent problem solving, optimized solution', 'None noted', 'Outstanding performance on coding challenge', NOW() - INTERVAL '2 days'
-WHERE NOT EXISTS (SELECT 1 FROM interview_feedback WHERE comments = 'Outstanding performance on coding challenge');
 
 -- ─────────────────────────────────────────────────────────────
 -- Notifications

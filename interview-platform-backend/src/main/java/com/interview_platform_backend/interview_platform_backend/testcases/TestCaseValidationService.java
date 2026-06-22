@@ -13,6 +13,7 @@ import java.util.*;
  * Supports multiple languages, time/memory limits, and scoring.
  */
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.code-execution.enabled", havingValue = "true")
 public class TestCaseValidationService {
 
     private static final Logger log = LoggerFactory.getLogger(TestCaseValidationService.class);
