@@ -102,8 +102,10 @@ assert_gte() {
 
 # Execute SQL and return output
 run_sql() {
-    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-        -t -A -c "$1" 2>/dev/null
+    local result
+    result=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+        -t -A -c "$1" 2>/dev/null)
+    echo "${result}" | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 # Execute SQL and return exit code (suppresses output)
