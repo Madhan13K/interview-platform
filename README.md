@@ -205,13 +205,17 @@ k6 run load-tests/rate-limiter-stress.js       # Redis race conditions
 
 ## Documentation
 
-| Document | Location | Description |
-|----------|----------|-------------|
-| Backend Audit & Roadmap | [BACKEND_AUDIT_AND_ROADMAP.md](BACKEND_AUDIT_AND_ROADMAP.md) | Architecture, credentials, testing, deployment |
-| Backend Roadmap | [interview-platform-backend/ROADMAP.md](interview-platform-backend/ROADMAP.md) | Feature status, bugs, checklist, infra |
-| Frontend Technical | [interview-platform-frontend/TECHNICAL_README.md](interview-platform-frontend/TECHNICAL_README.md) | Architecture, API layer, testing all features |
-| Frontend User Guide | [interview-platform-frontend/USER_GUIDE.md](interview-platform-frontend/USER_GUIDE.md) | End-user documentation |
-| Test Coverage Audit | [TEST_COVERAGE_AUDIT.md](TEST_COVERAGE_AUDIT.md) | Coverage gaps and plan |
+Each document has a **single clear purpose** - no overlapping content:
+
+| Document | What It Covers | Audience |
+|----------|---------------|----------|
+| [BACKEND_AUDIT_AND_ROADMAP.md](BACKEND_AUDIT_AND_ROADMAP.md) | Architecture, credentials, API testing commands, config reference | Backend developers |
+| [interview-platform-backend/ROADMAP.md](interview-platform-backend/ROADMAP.md) | Feature status (95 done), bugs (fixed/open), future roadmap (58 planned) | Product/Engineering leads |
+| [TEST_COVERAGE_AUDIT.md](TEST_COVERAGE_AUDIT.md) | Test inventory (60 files), how to run, coverage metrics, gaps | QA/DevOps |
+| [interview-platform-frontend/TECHNICAL_README.md](interview-platform-frontend/TECHNICAL_README.md) | Frontend architecture, 49 services, testing new features | Frontend developers |
+| [interview-platform-frontend/USER_GUIDE.md](interview-platform-frontend/USER_GUIDE.md) | How to use every feature, keyboard shortcuts, troubleshooting | End users |
+| [load-tests/README.md](load-tests/README.md) | k6 performance test guide, thresholds, capacity planning | DevOps/SRE |
+| [monitoring/PERFORMANCE_BASELINES.md](monitoring/PERFORMANCE_BASELINES.md) | Response time targets, alerting rules, regression detection | DevOps/SRE |
 | Load Tests | [load-tests/README.md](load-tests/README.md) | Performance test guide |
 
 ---

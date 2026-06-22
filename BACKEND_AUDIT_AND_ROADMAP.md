@@ -1,33 +1,70 @@
-# Interview Platform - Technical Reference & Roadmap
+# Interview Platform - Backend Technical Reference
 
-Everything a developer needs: architecture, credentials, testing, scripts, monitoring, deployment.
+Pure technical reference for the backend. No roadmap, no feature status, no future plans (see ROADMAP.md for those).
 
 ---
 
 ## 1. Architecture
 
 ```
-Browser (localhost:3000) ─── HTTP + WebSocket ───▶ Spring Boot (localhost:8080)
-                                                        │
-                                                        ├── PostgreSQL (5433) — 50+ tables
-                                                        ├── Redis (6379) — rate limit + cache
-                                                        ├── LocalStack S3 (4566) — file storage
-                                                        ├── OpenAI API — AI features
-                                                        ├── Stripe API — payments
-                                                        ├── Twilio API — SMS
-                                                        ├── Zoom API — meetings
-                                                        ├── Piston API — code execution
-                                                        ├── Firebase FCM — push notifications
-                                                        └── Kafka (9092, optional) — events
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENTS                                         │
+│  Browser (localhost:3000)    Mobile App    External API Consumers             │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │ HTTP + WebSocket
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SPRING BOOT APPLICATION (localhost:8080)                  │
+│                          Java 21 / Spring Boot 4.0.6                         │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Filter Chain:                                                        │    │
+│  │ CorsFilter → RateLimitingFilter → XssSanitizingFilter →             │    │
+│  │ ApiKeyAuthFilter → JwtAuthFilter → SecurityFilterChain →            │    │
+│  │ @PreAuthorize → Controller                                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  70+ Controllers │ 90+ Services │ 62+ Entities │ 320+ API Endpoints         │
+└───────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────────┘
+        │          │          │          │          │          │
+        ▼          ▼          ▼          ▼          ▼          ▼
+  ┌──────────┐ ┌───────┐ ┌────────┐ ┌───────┐ ┌────────┐ ┌────────────┐
+  │PostgreSQL│ │ Redis │ │ Kafka  │ │  S3   │ │WebSocket│ │  External  │
+  │  :5433   │ │ :6379 │ │ :9092  │ │ :4566 │ │  STOMP  │ │   APIs     │
+  │ 50+ tbls │ │cache/ │ │events/ │ │files/ │ │realtime │ │(see below) │
+  │ 33 migr. │ │ratelim│ │async   │ │docs   │ │         │ │            │
+  └──────────┘ └───────┘ └────────┘ └───────┘ └─────────┘ └────────────┘
 ```
 
-**Request filter chain:** CorsFilter → RateLimitingFilter → XssSanitizingFilter → ApiKeyAuthFilter → JwtAuthFilter → SecurityFilterChain → @PreAuthorize → Controller
+### External Service Connections
+
+| Service       | Purpose                  | Port/URL                    |
+|---------------|--------------------------|------------------------------|
+| PostgreSQL 16 | Primary database         | localhost:5433               |
+| Redis 7       | Cache + rate limiting    | localhost:6379               |
+| Kafka 7.6     | Event streaming          | localhost:9092 (optional)    |
+| LocalStack S3 | File storage             | localhost:4566               |
+| OpenAI        | AI features              | api.openai.com               |
+| Stripe        | Payments                 | api.stripe.com               |
+| Razorpay      | Payments (India)         | api.razorpay.com             |
+| PayU          | Payments                 | sandboxsecure.payu.in        |
+| Cashfree      | Payments                 | sandbox.cashfree.com         |
+| PhonePe       | Payments (India)         | api-preprod.phonepe.com      |
+| Twilio        | SMS/Voice                | api.twilio.com               |
+| Firebase FCM  | Push notifications       | fcm.googleapis.com           |
+| Zoom          | Video meetings           | api.zoom.us                  |
+| DocuSign      | E-signatures             | demo.docusign.net            |
+| Checkr        | Background checks        | api.checkr.com               |
+| Greenhouse    | ATS integration          | harvest.greenhouse.io        |
+| ClamAV        | Virus scanning           | localhost:3310               |
+| Piston        | Code execution sandbox   | emkc.org/api/v2/piston       |
 
 ---
 
 ## 2. Credentials & Environment (.env)
 
-### Required (app won't start without these):
+### Required (application will not start without these)
+
 ```env
 DB_URL=jdbc:postgresql://localhost:5433/interview_platform
 DB_USERNAME=admin
@@ -45,522 +82,762 @@ AWS_S3_SECRET_KEY=test
 AWS_S3_BUCKET_NAME=interview-platform-documents
 ```
 
-### Optional (features degrade gracefully without these):
+### Optional (features degrade gracefully)
+
 ```env
-# Google OAuth (social login) — get from console.cloud.google.com/apis/credentials
+# Google OAuth — console.cloud.google.com/apis/credentials
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# GitHub OAuth — get from github.com/settings/developers
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
+# OpenAI — platform.openai.com/api-keys
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4
 
-# AI (returns mock data without this) — get from platform.openai.com/api-keys ($5 min)
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
+# Stripe — dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
-# Email — get app password from myaccount.google.com/apppasswords
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
+# Razorpay — dashboard.razorpay.com/app/keys
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=
 
-# SMS — get from twilio.com/try-twilio (free trial)
-SMS_ENABLED=false
+# PayU — payu.in/business
+PAYU_MERCHANT_KEY=
+PAYU_MERCHANT_SALT=
+PAYU_BASE_URL=https://sandboxsecure.payu.in
+
+# Cashfree — merchant.cashfree.com
+CASHFREE_APP_ID=
+CASHFREE_SECRET_KEY=
+CASHFREE_BASE_URL=https://sandbox.cashfree.com
+
+# PhonePe — developer.phonepe.com
+PHONEPE_MERCHANT_ID=
+PHONEPE_SALT_KEY=
+PHONEPE_SALT_INDEX=1
+PHONEPE_BASE_URL=https://api-preprod.phonepe.com
+
+# Twilio — console.twilio.com
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_PHONE_NUMBER=
 
-# Payments — get from dashboard.stripe.com/apikeys (free test mode)
-app.billing.enabled=false
-app.billing.stripe.secret-key=sk_test_...
-app.billing.stripe.webhook-secret=whsec_...
+# Firebase — console.firebase.google.com
+FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 
-# Video meetings — get from marketplace.zoom.us
-ZOOM_ACCOUNT_ID=
+# Zoom — marketplace.zoom.us
 ZOOM_CLIENT_ID=
 ZOOM_CLIENT_SECRET=
+ZOOM_ACCOUNT_ID=
 
-# Push notifications — get from console.firebase.google.com
-app.push.enabled=false
-app.push.firebase.server-key=
+# DocuSign — developers.docusign.com
+DOCUSIGN_INTEGRATION_KEY=
+DOCUSIGN_SECRET_KEY=
+DOCUSIGN_ACCOUNT_ID=
+DOCUSIGN_BASE_URL=https://demo.docusign.net
 
-# SSO/SAML — configure IdP (Okta/Azure AD) metadata URL
-app.sso.enabled=false
-app.sso.provider=okta
-app.sso.metadata-url=
+# Checkr — dashboard.checkr.com
+CHECKR_API_KEY=
+CHECKR_BASE_URL=https://api.checkr.com
 
-# Docker code execution (needs Docker daemon running)
-app.code-execution.docker.enabled=false
-app.code-execution.docker.memory-limit=256m
-app.code-execution.docker.timeout-seconds=10
+# Greenhouse — app.greenhouse.io
+GREENHOUSE_API_KEY=
+GREENHOUSE_BASE_URL=https://harvest.greenhouse.io
 
-# Field encryption for PII (generate key: openssl rand -base64 32)
-app.encryption.enabled=false
-app.encryption.key=
+# ClamAV
+CLAMAV_HOST=localhost
+CLAMAV_PORT=3310
 
-# Data retention
-app.retention.enabled=false
-app.retention.candidate-data-days=730
-
-# Background checks — get from checkr.com
-app.background-check.provider=mock
-app.background-check.checkr.api-key=
-
-# Kafka (event streaming)
-KAFKA_ENABLED=false
+# Kafka (optional event streaming)
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 
-# Account lockout
-app.security.lockout.max-attempts=5
-app.security.lockout.duration-minutes=30
+# SMTP (email)
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
 ```
 
 ---
 
-## 3. Testing Guide (How to Test Every Module)
+## 3. Test Accounts
 
-### Start services first:
+| Email                | Password  | Role        |
+|----------------------|-----------|-------------|
+| admin@interview.com  | admin123  | ADMIN       |
+| frank@test.com       | Test@123  | INTERVIEWER |
+| alice@test.com       | Test@123  | CANDIDATE   |
+| charlie@test.com     | Test@123  | HR_MANAGER  |
+
+---
+
+## 4. Testing Every Module (curl commands)
+
+### Authenticate (get token)
+
 ```bash
-docker compose up -d && ./mvnw spring-boot:run
-# Get a token:
-TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@interview.com","password":"admin123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+  -d '{"email":"admin@interview.com","password":"admin123"}' | jq -r '.token')
 ```
 
-### Auth & Users
+### Core Modules
+
 ```bash
-# Register
-curl -X POST localhost:8080/api/v1/auth/register -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","lastName":"User","email":"test@x.com","password":"Test@123"}'
+# Users
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/users/me
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/users?page=0&size=10
 
-# Login → get token
-# Get current user
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/users/me
+# Interviews
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/interviews
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/interviews/1
 
-# Change password
-curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/users/{userId}/change-password \
-  -d '{"currentPassword":"admin123","newPassword":"NewPass@123"}'
+# Candidates
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/candidates
+
+# Jobs
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/jobs
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/jobs/1
+
+# Applications
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/applications
+
+# Assessments
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/assessments
+
+# Questions
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/questions
+
+# Feedback
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/feedback
+
+# Scheduling
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/scheduling/available-slots
+
+# Notifications
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/notifications
+
+# Analytics/Dashboard
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/analytics/dashboard
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/analytics/reports
+
+# Documents
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/documents
+
+# Payments
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/payments
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/subscriptions
+
+# AI Features
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/ai/resume-analysis
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/ai/interview-feedback
+
+# Communication
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/messages
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/video-calls
+
+# Audit Log
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/audit-logs
+
+# System Health
+curl http://localhost:8080/actuator/health
+curl http://localhost:8080/actuator/info
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/actuator/prometheus
 ```
 
-### Interviews
+### Payment Gateway Testing
+
 ```bash
-# Create
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/interviews \
-  -d '{"title":"Tech Screen","type":"TECHNICAL","scheduledAt":"2026-07-01T10:00:00","duration":60,"candidateId":"<uuid>"}'
+# Stripe checkout session
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"planId":1,"gateway":"STRIPE"}' \
+  http://localhost:8080/api/payments/checkout
 
-# List / Filter
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/interviews
-curl -H "Authorization: Bearer $TOKEN" "localhost:8080/api/v1/interviews/filter/status?status=SCHEDULED"
+# Razorpay order
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"planId":1,"gateway":"RAZORPAY"}' \
+  http://localhost:8080/api/payments/checkout
 
-# Submit feedback
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/interviews/{id}/feedback \
-  -d '{"rating":4,"strengths":"Good","weaknesses":"None","recommendation":"HIRE"}'
-```
-
-### Code Execution
-```bash
-# Run code (Piston API)
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/code/execute \
-  -d '{"code":"print(2+2)","language":"python","stdin":""}'
-
-# Test cases
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/code/execute/test-cases \
-  -d '{"code":"n=int(input())\nprint(n*2)","language":"python","testCases":[{"input":"5","expectedOutput":"10","description":"double"}]}'
-```
-
-### Scheduling
-```bash
-# Add availability
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/scheduling/availability \
-  -d '{"dayOfWeek":"MONDAY","startTime":"09:00","endTime":"17:00","recurring":true}'
-
-# Get my availability
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/scheduling/availability/my
-
-# Smart suggest
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/scheduling/suggest \
-  -d '{"interviewerIds":["<uuid>"],"candidateId":"<uuid>","duration":60,"dateRange":{"start":"2026-07-01","end":"2026-07-07"}}'
-```
-
-### Pipelines
-```bash
-# Create pipeline
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/pipelines \
-  -d '{"name":"Engineering","department":"Eng","stages":[{"name":"Applied","order":1,"type":"SCREENING"},{"name":"Technical","order":2,"type":"INTERVIEW"}]}'
-
-# Add candidate & advance
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/pipelines/candidates -d '{"pipelineId":"<id>","candidateId":"<id>"}'
-curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/pipelines/candidates/{cpId}/advance
-```
-
-### AI Features
-```bash
-# Question suggestions
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/ai/suggest-questions \
-  -d '{"interviewType":"TECHNICAL","skills":["Java","Spring"],"experienceLevel":"Senior","count":3}'
-
-# Resume parse
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/ai/parse-resume -d '{"resumeText":"John Doe, 5 years Java..."}'
-```
-
-### Documents (S3)
-```bash
-# Upload
-curl -X POST -H "Authorization: Bearer $TOKEN" -F "file=@resume.pdf" -F "documentType=RESUME" \
-  localhost:8080/api/v1/documents
-
-# Get download URL
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/documents/{id}/download-url
-```
-
-### Notifications
-```bash
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/notifications/count
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/notifications
-curl -X PATCH -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/notifications/read-all
-```
-
-### Search
-```bash
-curl -H "Authorization: Bearer $TOKEN" "localhost:8080/api/v1/search?q=frontend&type=ALL&page=0&size=10"
-```
-
-### Analytics
-```bash
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/analytics/realtime
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/analytics/leaderboard?limit=5
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/analytics/cohorts?months=6
-```
-
-### Billing
-```bash
-curl localhost:8080/api/v1/billing/plans
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/billing/checkout \
-  -d '{"planId":"professional","organizationId":"<id>","email":"a@b.com","successUrl":"http://localhost:3000/settings/billing","cancelUrl":"http://localhost:3000/settings/billing"}'
-```
-
-### MFA
-```bash
-# Setup
-curl -X POST -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/auth/mfa/setup
-# Returns: { secret, qrCodeUrl, backupCodes }
-
-# Verify (enter code from authenticator app)
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/auth/mfa/verify -d '{"code":"123456"}'
-```
-
-### GDPR
-```bash
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/gdpr/consent
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  localhost:8080/api/v1/gdpr/consent -d '{"consentType":"DATA_PROCESSING","granted":true}'
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/gdpr/export  # Downloads your data
-```
-
-### WebSocket Presence
-```bash
-curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/interviews/{id}/presence
-```
-
-### Frontend Testing (Browser)
-| Route | What to Test |
-|-------|-------------|
-| `/dashboard` | Stats load, quick actions work |
-| `/interviews` | Create, filter, click detail |
-| `/interviews/session?id=x` | Code editor runs, video loads |
-| `/code-editor` | Write JS → Run → see output |
-| `/ai` | Upload PDF, generate questions |
-| `/settings/mfa` | Enable MFA flow |
-| `/settings/billing` | View plans, click upgrade |
-| `/pipelines` | Create pipeline, advance candidates |
-| `/chatbot` | Ask questions, get responses |
-
----
-
-## 4. Flyway Migrations (Database Schema)
-
-**18 migrations, 50+ tables. Runs automatically on startup.**
-
-| # | Tables | Purpose |
-|---|--------|---------|
-| V1 | users, roles, permissions, user_roles, role_permissions, refresh_tokens | Auth & RBAC |
-| V2 | interviews, interview_interviewers, interview_feedback | Interviews |
-| V3 | (alter refresh_tokens) | Token rotation |
-| V4 | (alter users + auth_provider) | OAuth2 |
-| V5 | (seed data: 4 roles, 7 permissions, 4 users) | Defaults |
-| V6 | password_reset_tokens | Password reset |
-| V7 | email_verification_tokens | Email verify |
-| V8 | (alter refresh_tokens → TEXT) | JWT storage |
-| V9 | interviewer_availability, question_categories, questions, coding_sessions, meeting_links | Execution |
-| V10 | notifications | In-app alerts |
-| V11 | interview_templates, template_questions | Templates |
-| V12 | evaluation_criteria, evaluation_scorecards, scorecard_entries | Scoring |
-| V13 | interview_pipelines, pipeline_stages, candidate_pipelines, candidate_stage_progress | Pipelines |
-| V14 | documents | File storage |
-| V15 | job_positions | Jobs |
-| V16 | availability_slots, interview_reminders, candidate_preferred_slots, teams, team_members, tags, entity_tags | Scheduling+Teams |
-| V17 | organizations, organization_members, ai_suggestions, video_recordings, whiteboard_sessions, whiteboard_strokes, webhook_endpoints, webhook_deliveries, candidate_feedback, activity_events, export_import_jobs | Collaboration |
-| V18 | user_mfa, user_consents, data_erasure_requests, api_keys, shedlock | Security |
-
-**Fix issues:** `./mvnw flyway:repair` or `./scripts/flyway_repair.sh`
-
----
-
-## 5. Logging
-
-| Profile | App Code | Security | SQL |
-|---------|----------|----------|-----|
-| dev | DEBUG | DEBUG | DEBUG + TRACE params |
-| prod | INFO | WARN | OFF |
-
-**Key log lines to look for:**
-```
-AiService:        "OpenAI API call successful - type: X, tokens: Y, cost: $Z"
-RateLimiting:     "Rate limit exceeded: ip=X, key=Y"
-AccountLockout:   "Account LOCKED: email=X, attempts=5"
-SMS:              "Twilio SMS sent: to=+1***4567, sid=SMxxx"
-DataRetention:    "Purged 145 records from notifications"
-GracefulShutdown: "Graceful shutdown initiated. Active requests: 3"
+# Webhook endpoints (called by gateways)
+# POST /api/webhooks/stripe
+# POST /api/webhooks/razorpay
+# POST /api/webhooks/payu
+# POST /api/webhooks/cashfree
+# POST /api/webhooks/phonepe
 ```
 
 ---
 
-## 6. Scripts
+## 5. Database Schema Overview
 
-| Script | What | When |
-|--------|------|------|
-| `scripts/init_localstack_s3.sh` | Creates S3 bucket manually | If auto-init failed |
-| `scripts/flyway_repair.sh` | Fixes checksum mismatches | After editing migrations |
-| `scripts/verify_rbac_seed.sh` | Validates default data exists | After fresh DB setup |
-| `localstack-init/01-create-bucket.sh` | Auto-creates bucket + CORS | Runs in Docker on startup |
+### Technology
+- PostgreSQL 16
+- Flyway migrations (33 total)
+- 62+ JPA entities
+- 50+ tables
 
----
+### Flyway Migrations List
 
-## 7. Docker & LocalStack
+| Version | Description                              |
+|---------|------------------------------------------|
+| V1      | Initial schema (users, roles)            |
+| V2      | Interview tables                         |
+| V3      | Questions and assessments                |
+| V4      | Candidates and applications              |
+| V5      | Job postings                             |
+| V6      | Scheduling and calendar                  |
+| V7      | Feedback and evaluations                 |
+| V8      | Documents and file metadata              |
+| V9      | Notifications                            |
+| V10     | Audit log                                |
+| V11     | Analytics tables                         |
+| V12     | Payment and subscription tables          |
+| V13     | Communication/messaging                  |
+| V14     | Video call sessions                      |
+| V15     | AI analysis results                      |
+| V16     | User preferences and settings            |
+| V17     | Teams and departments                    |
+| V18     | Skills and competencies                  |
+| V19     | Interview panels                         |
+| V20     | Offer management                         |
+| V21     | Onboarding workflows                     |
+| V22     | Background check records                 |
+| V23     | Integration configs                      |
+| V24     | Rate limiting tables                     |
+| V25     | MFA/TOTP secrets                         |
+| V26     | SSO/SAML configuration                   |
+| V27     | API keys                                 |
+| V28     | Webhook configurations                   |
+| V29     | Report templates                         |
+| V30     | Code execution submissions               |
+| V31     | Scorecard templates                      |
+| V32     | Talent pool                              |
+| V33     | Compliance and data retention            |
 
-```bash
-# Start everything
-docker compose up -d
+### Key Entity Relationships
 
-# Services started:
-# PostgreSQL → localhost:5433 (DB: interview_platform, User: admin/postgres)
-# Redis      → localhost:6379
-# LocalStack → localhost:4566 (S3 bucket auto-created)
-
-# Optional profiles:
-docker compose --profile observability up -d  # + Zipkin (9411)
-docker compose --profile messaging up -d       # + Kafka (9092)
-
-# Health checks:
-docker compose exec postgres pg_isready -U admin
-docker compose exec redis redis-cli ping
-curl localhost:4566/_localstack/health
-
-# S3 debug:
-aws --endpoint-url=http://localhost:4566 s3 ls s3://interview-platform-documents/
+```
+User (1) ──── (N) Interview
+User (1) ──── (N) Application
+Job (1) ──── (N) Application
+Interview (1) ──── (N) Feedback
+Interview (1) ──── (1) Assessment
+Assessment (1) ──── (N) Question
+User (1) ──── (N) Notification
+User (1) ──── (1) Subscription
+Subscription (1) ──── (N) Payment
 ```
 
 ---
 
-## 8. Monitoring
+## 6. Logging Configuration
+
+### Log Levels (application.yml)
+
+```yaml
+logging:
+  level:
+    root: INFO
+    com.interview.platform: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/application.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+```
+
+### Log Files
+
+| File                      | Content                    |
+|---------------------------|----------------------------|
+| logs/application.log      | Main application log       |
+| logs/audit.log            | Security/audit events      |
+| logs/error.log            | Errors only (appender)     |
+
+### Structured Logging (JSON)
+
+Production profile uses JSON structured logging via Logback with MDC fields:
+- `requestId` - correlation ID per request
+- `userId` - authenticated user
+- `sessionId` - session tracking
+- `traceId` - distributed tracing
+
+---
+
+## 7. Scripts Available
+
+| Script                        | Purpose                                      |
+|-------------------------------|----------------------------------------------|
+| `./mvnw spring-boot:run`     | Start application                            |
+| `./mvnw test`                | Run all unit tests                           |
+| `./mvnw verify`              | Run unit + integration tests                 |
+| `./mvnw clean package -DskipTests` | Build JAR without tests                |
+| `./mvnw flyway:migrate`      | Run pending migrations                       |
+| `./mvnw flyway:info`         | Show migration status                        |
+| `docker-compose up -d`       | Start all infrastructure                     |
+| `docker-compose up -d postgres redis localstack` | Start minimal infra      |
+| `docker-compose down -v`     | Tear down with volume cleanup                |
+| `scripts/seed-data.sh`       | Load test/seed data                          |
+| `scripts/backup-db.sh`       | Backup PostgreSQL database                   |
+| `scripts/restore-db.sh`      | Restore from backup                          |
+
+---
+
+## 8. Docker / LocalStack Setup
+
+### docker-compose.yml Services
+
+```yaml
+services:
+  postgres:
+    image: postgres:16
+    ports: ["5433:5432"]
+    environment:
+      POSTGRES_DB: interview_platform
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  localstack:
+    image: localstack/localstack:latest
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    ports: ["9092:9092"]
+    depends_on: [zookeeper]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    ports: ["2181:2181"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3001:3000"]
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+```
+
+### LocalStack S3 Initialization
 
 ```bash
-# Start monitoring stack
-cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
-
-# Prometheus: http://localhost:9090 (scrapes /actuator/prometheus every 10s)
-# Grafana:    http://localhost:3001 (admin/admin, add Prometheus data source)
-# Metrics:    curl localhost:8080/actuator/prometheus
-# Health:     curl localhost:8080/actuator/health
+# Auto-runs on container start via init script
+awslocal s3 mb s3://interview-platform-documents
+awslocal s3api put-bucket-cors --bucket interview-platform-documents \
+  --cors-configuration '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT","POST","DELETE"],"AllowedHeaders":["*"]}]}'
 ```
 
 ---
 
-## 9. CI/CD & Deployment
+## 9. Monitoring (Prometheus / Grafana)
 
-**GitHub Actions** (`.github/workflows/ci.yml`): On push to main/develop:
-1. Backend: Maven test with PostgreSQL + Redis services
-2. Frontend: npm ci + next build + lint
-3. Docker: Build images (on main only)
+### Prometheus Targets
 
-**Dockerfiles:**
-- `interview-platform-backend/Dockerfile` → JDK 21 build → JRE 21 runtime
-- `interview-platform-frontend/Dockerfile` → Node 18 build → standalone
+| Target                  | Endpoint                              |
+|-------------------------|---------------------------------------|
+| Spring Boot Actuator    | localhost:8080/actuator/prometheus     |
+| PostgreSQL Exporter     | localhost:9187/metrics                 |
+| Redis Exporter          | localhost:9121/metrics                 |
 
-**Kubernetes** (`k8s/deployment.yml`): Backend (2 replicas) + Frontend (2 replicas) + Redis + Ingress
+### Key Metrics Exposed
 
-**Deploy commands:**
-```bash
-# Railway (backend)
-cd interview-platform-backend && railway init && railway up
+```
+# JVM
+jvm_memory_used_bytes
+jvm_threads_live_threads
+jvm_gc_pause_seconds
 
-# Vercel (frontend)
-cd interview-platform-frontend && npx vercel deploy
+# HTTP
+http_server_requests_seconds_count
+http_server_requests_seconds_sum
+http_server_requests_seconds_max
 
-# Kubernetes
-kubectl apply -f k8s/deployment.yml
+# Custom Business Metrics
+interviews_scheduled_total
+interviews_completed_total
+payments_processed_total
+ai_analysis_requests_total
+active_users_gauge
 ```
 
----
+### Grafana Dashboards (localhost:3001, admin/admin)
 
-## 10. Security Checklist (All Implemented)
-
-- [x] JWT RSA-256 signing (private.pem/public.pem)
-- [x] Refresh token rotation with replay detection
-- [x] TOTP MFA with backup codes
-- [x] API Key auth (SHA-256 hashed)
-- [x] OAuth2 + PKCE (Google, GitHub, Microsoft)
-- [x] SAML SSO (Okta, OneLogin, Azure AD)
-- [x] CORS + CSP headers
-- [x] XSS sanitization filter
-- [x] Rate limiting (Redis + fallback, per-endpoint tuning)
-- [x] Account lockout (5 attempts → 30min)
-- [x] IP blocking (20 attempts → 60min)
-- [x] IP whitelisting per organization
-- [x] Field-level AES-256-GCM encryption (PII)
-- [x] Docker sandboxed code execution
-- [x] GDPR (consent, export, erasure)
-- [x] Audit logging
-- [x] Graceful shutdown
-- [x] Feature flags (percentage rollout)
+1. **Application Overview** - request rates, error rates, latency percentiles
+2. **JVM Metrics** - heap, GC, threads
+3. **Database** - connection pool, query times
+4. **Business KPIs** - interviews/day, revenue, user signups
 
 ---
 
-## 11. All 67 Backend Services
+## 10. CI/CD Pipeline Stages
 
-| Category | Services |
-|----------|----------|
-| **Auth** | AuthenticationService, MfaService, ApiKeyService, SamlSsoService, AccountLockoutService |
-| **Users** | UserService, RoleService, PermissionService, RolePermissionService |
-| **Interviews** | InterviewService, DashboardService, AdvancedAnalyticsService |
-| **Scheduling** | SchedulingService, CalendarService, ReminderService, CandidateSelfServiceImpl |
-| **Pipeline** | PipelineService, JobPositionService |
-| **Templates** | InterviewTemplateService, QuestionBankService |
-| **Scoring** | EvaluationScorecardService, RecruiterSlaService |
-| **AI** | AiService (OpenAI), SearchService (PostgreSQL FTS) |
-| **Code** | CodingSessionService, CodeExecutionService (Piston), DockerCodeExecutionService, PlagiarismDetectionService |
-| **Documents** | DocumentService, S3StorageService |
-| **Communication** | InAppNotificationService, EmailNotificationService, EmailTemplateService, SmsNotificationService, PushNotificationService, EmailDeliverabilityService |
-| **Collaboration** | WhiteboardService, VideoRecordingService, MeetingService, MentionService |
-| **Events** | ActivityService, NotificationProducer, NotificationConsumer |
-| **Billing** | StripePaymentService |
-| **Security** | FieldEncryptionService, IpWhitelistService, RateLimitingFilter, RedisRateLimiterService |
-| **Organizations** | OrganizationService, TeamService, TagService |
-| **Integration** | WebhookService, JobBoardPostingService, BackgroundCheckService |
-| **Data** | ExportImportService, BulkOperationService, GdprService, DataRetentionService |
-| **Config** | FeatureFlagService, GracefulShutdownService |
-| **Reports** | ReportService (PDF generation) |
+```
+┌─────────┐   ┌──────────┐   ┌──────────┐   ┌─────────┐   ┌────────┐
+│  Lint   │──▶│  Build   │──▶│   Test   │──▶│ Package │──▶│ Deploy │
+│Checkstyle│  │Maven Compile│ │Unit+Integ│  │Docker img│  │  K8s   │
+└─────────┘   └──────────┘   └──────────┘   └─────────┘   └────────┘
+```
+
+| Stage       | Tool              | Details                                    |
+|-------------|-------------------|--------------------------------------------|
+| Lint        | Checkstyle, SpotBugs | Code style + static analysis            |
+| Build       | Maven 3.9+        | Compile Java 21 sources                   |
+| Unit Test   | JUnit 5, Mockito  | ~200+ unit tests                          |
+| Integration | Testcontainers    | PostgreSQL, Redis, LocalStack in Docker   |
+| Security    | OWASP Dependency Check | CVE scanning of dependencies         |
+| Package     | Docker            | Multi-stage build, distroless base image  |
+| Deploy      | Kubernetes/Helm   | Rolling update, health check gates        |
 
 ---
 
-## 12. Remaining (Not Implemented)
+## 11. Security Checklist (Implemented Features)
 
-| Feature | Why Deferred | Status |
-|---------|-------------|--------|
-| ~~Predictive Analytics (ML)~~ | ~~Needs Python pipeline~~ | **DONE** - JPA-based statistical model |
-| ~~Native WebRTC SFU~~ | ~~Needs mediasoup server~~ | **DONE** - Signaling service implemented |
-| ~~Mobile SDK~~ | ~~Separate RN/Flutter project~~ | **DONE** - Config/registration API ready |
-| ~~File Virus Scanning~~ | ~~Needs ClamAV~~ | **DONE** - ClamAV client dependency added |
-| OpenTelemetry Traces | Needs OTEL Collector + Java agent | Dependency present, agent not configured |
-| Real-time OT/CRDT | Operational Transform algorithm | Complex; current last-write-wins is sufficient for MVP |
-| Audit Log S3 Export | Append-only lifecycle policy | S3 export method available but not scheduled |
-| Multi-Region Active-Active | AWS multi-region infrastructure | Service layer ready; infra not provisioned |
+### Authentication
+- [x] JWT access tokens (RSA-256 signed)
+- [x] JWT refresh token rotation
+- [x] OAuth2 (Google, GitHub)
+- [x] SAML SSO
+- [x] MFA/TOTP (Google Authenticator)
+- [x] API key authentication (for integrations)
+- [x] Account lockout after failed attempts
 
----
+### Authorization
+- [x] Role-based access control (ADMIN, HR_MANAGER, INTERVIEWER, CANDIDATE)
+- [x] Method-level @PreAuthorize
+- [x] Resource ownership validation
+- [x] API key scoping
 
-## 13. Recently Implemented Features
+### Input/Output Security
+- [x] XSS sanitization filter (all inputs)
+- [x] SQL injection prevention (parameterized queries via JPA)
+- [x] CORS configuration (allowed origins whitelist)
+- [x] Content-Type validation
+- [x] File upload virus scanning (ClamAV)
+- [x] File type/size restrictions
 
-### P1 (Completed)
-| Feature | Module | API |
-|---------|--------|-----|
-| Excel Export/Import (.xlsx) | `exportimport/` | Existing endpoints now support EXCEL format |
-| In-App Messaging | `messaging/` | `/api/v1/messaging/conversations`, `/messages` |
+### Rate Limiting
+- [x] Per-IP rate limiting (Redis-backed)
+- [x] Per-user rate limiting
+- [x] Endpoint-specific limits (auth endpoints stricter)
+- [x] Distributed rate limiting via Redis
 
-### P2 (Completed)
-| Feature | Module | API |
-|---------|--------|-----|
-| Push Notifications (FCM) | `pushnotification/` | Integrated via notification pipeline |
-| Data Retention Policies | `retention/` | Scheduled auto-purge (ShedLock) |
-| IP Whitelisting per Org | `ipwhitelist/` | `/api/v1/organizations/{id}/ip-whitelist` |
+### Data Protection
+- [x] Password hashing (BCrypt)
+- [x] Sensitive field encryption at rest
+- [x] HTTPS enforcement (production)
+- [x] Secure cookie flags (HttpOnly, Secure, SameSite)
+- [x] PII data masking in logs
+- [x] GDPR data export/deletion endpoints
 
-### P3 (Completed)
-| Feature | Module | API |
-|---------|--------|-----|
-| Background Checks | `backgroundcheck/` | `/api/v1/background-checks` |
-| ATS Integration | `atsintegration/` | `/api/v1/integrations/ats/{provider}` |
-| Job Board Posting | `jobposting/` | `/api/v1/job-boards/post-all` |
-| Recruiter SLA Tracking | `slatracking/` | `/api/v1/sla/metrics`, `/workload`, `/bottlenecks` |
-| Feature Flags | `featureflags/` | `/api/v1/feature-flags` |
-| Billing (Stripe) | `billing/` | `/api/v1/billing/checkout`, `/subscriptions` |
-
-### P4 (Completed)
-| Feature | Module | API |
-|---------|--------|-----|
-| GraphQL API | `graphql/` | `/graphql` (conditional) |
-| Predictive Analytics | `predictive/` | `/api/v1/predictions/candidate/{id}/success` |
-| Candidate Chatbot (AI) | `chatbot/` | `/api/v1/chatbot/message` |
-| Native WebRTC Video | `webrtc/` | `/api/v1/video/webrtc/rooms/{id}` |
-| Plagiarism Detection | `plagiarism/` | `/api/v1/plagiarism/check` |
-| Test Case Validation | `testcases/` | `/api/v1/test-cases/validate` |
-| Multi-Region Residency | `dataresidency/` | `/api/v1/data-residency/region` |
-| Mobile SDK Config | `mobilesdk/` | `/api/v1/mobile/config` |
-| AI Interview Scoring | `aiscoring/` | `/api/v1/ai-scoring/analyze` |
-| Assessment Marketplace | `marketplace/` | `/api/v1/marketplace/assessments` |
+### Infrastructure
+- [x] Security headers (X-Frame-Options, X-Content-Type-Options, CSP)
+- [x] Audit logging (all state-changing operations)
+- [x] Session management (concurrent session control)
+- [x] CSRF protection (stateless token)
+- [x] Dependency vulnerability scanning (OWASP)
 
 ---
 
-## 14. Performance Testing
+## 12. All Backend Services (by Category)
 
-Load tests available in `/load-tests/` directory (k6):
+### Authentication & Authorization (8)
+1. AuthenticationService
+2. JwtTokenService
+3. RefreshTokenService
+4. OAuth2UserService
+5. MfaService
+6. SamlAuthService
+7. ApiKeyService
+8. PasswordResetService
 
-| Test | Scenario | Pass Criteria |
-|------|----------|---------------|
-| `concurrent-interviews.js` | 100 WebSocket connections | p95 connect < 2s |
-| `bulk-schedule.js` | 1000 interviews in bulk | p95 < 5s, 0 pool exhaustion |
-| `code-save-throughput.js` | Rapid code editor sync | p95 latency < 1s |
-| `concurrent-code-execution.js` | 50 Docker containers | 80% success rate |
-| `rate-limiter-stress.js` | 200 req/s burst | 90% accuracy |
+### User Management (6)
+9. UserService
+10. UserProfileService
+11. RoleService
+12. PermissionService
+13. TeamService
+14. DepartmentService
 
-See [load-tests/README.md](load-tests/README.md) for usage.
+### Interview Management (10)
+15. InterviewService
+16. InterviewSchedulingService
+17. InterviewPanelService
+18. InterviewFeedbackService
+19. InterviewScorecardService
+20. InterviewRoomService
+21. LiveCodingService
+22. CodeExecutionService
+23. WhiteboardService
+24. InterviewRecordingService
+
+### Job & Application Management (8)
+25. JobService
+26. JobPostingService
+27. ApplicationService
+28. ApplicationWorkflowService
+29. CandidateService
+30. CandidatePipelineService
+31. TalentPoolService
+32. RequisitionService
+
+### Assessment & Questions (7)
+33. AssessmentService
+34. QuestionService
+35. QuestionBankService
+36. TestCaseService
+37. SkillAssessmentService
+38. CompetencyService
+39. GradingService
+
+### AI & Analytics (8)
+40. AiResumeAnalysisService
+41. AiInterviewFeedbackService
+42. AiQuestionGenerationService
+43. AiSentimentAnalysisService
+44. AnalyticsService
+45. ReportingService
+46. DashboardService
+47. MetricsService
+
+### Payments & Subscriptions (9)
+48. PaymentService
+49. StripePaymentService
+50. RazorpayPaymentService
+51. PayUPaymentService
+52. CashfreePaymentService
+53. PhonePePaymentService
+54. SubscriptionService
+55. InvoiceService
+56. WebhookService
+
+### Communication (8)
+57. NotificationService
+58. EmailService
+59. SmsService (Twilio)
+60. PushNotificationService (Firebase)
+61. InAppMessageService
+62. ChatService
+63. VideoCallService (Zoom)
+64. WebSocketService
+
+### Document Management (5)
+65. DocumentService
+66. FileStorageService (S3)
+67. ResumeParsingService
+68. TemplateService
+69. DocuSignService
+
+### Integrations (7)
+70. GreenhouseIntegrationService
+71. CheckrBackgroundCheckService
+72. ZoomIntegrationService
+73. CalendarIntegrationService
+74. SlackIntegrationService
+75. WebhookDeliveryService
+76. ExternalApiService
+
+### Scheduling & Calendar (5)
+77. SchedulingService
+78. AvailabilityService
+79. CalendarSyncService
+80. TimeZoneService
+81. ReminderService
+
+### Compliance & Administration (8)
+82. AuditLogService
+83. DataRetentionService
+84. GdprService
+85. ComplianceService
+86. SystemConfigService
+87. FeatureFlagService
+88. CacheService
+89. RateLimitService
+
+### Onboarding & Offers (6)
+90. OfferService
+91. OfferApprovalService
+92. OnboardingService
+93. OnboardingTaskService
+94. BackgroundCheckService
+95. EmployeeTransitionService
 
 ---
 
-## 15. Test Coverage
+## 13. Configuration Reference (application.yml)
 
-See [TEST_COVERAGE_AUDIT.md](TEST_COVERAGE_AUDIT.md) for full analysis.
+### Server
 
-**Current:** ~25% line coverage, 23% module coverage (32 tests)  
-**Target:** 60% line coverage, 67% module coverage  
-**Critical gaps:** JWT validation, rate limiting, code execution security, GDPR erasure
+```yaml
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,application/javascript
+```
+
+### Database
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 20
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+```
+
+### Redis
+
+```yaml
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+```
+
+### Kafka
+
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: interview-platform
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+```
+
+### Security
+
+```yaml
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      refresh-secret: ${JWT_REFRESH_SECRET}
+      expiration: ${JWT_EXPIRATION:86400000}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:1209600000}
+    rate-limit:
+      enabled: true
+      requests-per-minute: 60
+      auth-requests-per-minute: 10
+    cors:
+      allowed-origins: ${FRONTEND_URL}
+      allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+```
+
+### S3 / File Storage
+
+```yaml
+app:
+  storage:
+    s3:
+      endpoint: ${AWS_S3_ENDPOINT}
+      access-key: ${AWS_S3_ACCESS_KEY}
+      secret-key: ${AWS_S3_SECRET_KEY}
+      bucket-name: ${AWS_S3_BUCKET_NAME}
+      region: us-east-1
+    max-file-size: 10MB
+    allowed-types: pdf,doc,docx,png,jpg,jpeg
+```
+
+### Actuator / Monitoring
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,loggers
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: interview-platform
+```
+
+### Profiles
+
+| Profile      | Purpose                                          |
+|--------------|--------------------------------------------------|
+| `default`    | Local development (debug logging, H2 fallback)   |
+| `dev`        | Development environment                          |
+| `staging`    | Pre-production (production-like, test data)      |
+| `production` | Production (optimized, minimal logging)          |
+| `test`       | Test execution (Testcontainers, mocked externals)|
 
 ---
 
-## 16. Frontend Routes (68 pages)
+## Quick Start
 
-**Main:** `/dashboard`, `/profile`, `/notifications`  
-**Interviews:** `/interviews`, `/interviews/[id]`, `/interviews/session`  
-**Scheduling:** `/scheduling`, `/scheduling/self-service`, `/calendar-sync`, `/calendar`  
-**Recruitment:** `/jobs`, `/careers`, `/pipelines`, `/offers`, `/referrals`, `/talent-pool`, `/candidates`  
-**Resources:** `/questions`, `/interview-kits`, `/code-editor`, `/templates`, `/teams`, `/documents`  
-**Intelligence:** `/ai`, `/reports`, `/report-builder`, `/analytics`, `/leaderboard`, `/dei-analytics`, `/sources`, `/activity`  
-**Communication:** `/messaging`, `/chatbot`, `/recordings`  
-**Automation:** `/workflows`, `/approvals`, `/integrations`, `/debriefs`  
-**Settings:** `/settings/mfa`, `/settings/api-keys`, `/settings/webhooks`, `/settings/gdpr`, `/settings/audit`, `/settings/bulk`, `/settings/export`, `/settings/billing`, `/settings/sso`, `/settings/security`  
-**Admin:** `/admin`, `/admin/users`, `/admin/roles`, `/admin/permissions`, `/admin/role-permissions`  
-**Other:** `/scorecards`, `/tags`, `/reminders`, `/candidate-feedback`, `/organizations`  
-**Auth:** `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`, `/oauth2/*`
+```bash
+# 1. Start infrastructure
+docker-compose up -d postgres redis localstack
+
+# 2. Copy environment
+cp .env.example .env
+
+# 3. Run application
+./mvnw spring-boot:run
+
+# 4. Verify
+curl http://localhost:8080/actuator/health
+# → {"status":"UP"}
+
+# 5. Login
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@interview.com","password":"admin123"}'
+```
