@@ -201,7 +201,7 @@ jobs:
           ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
           echo "Waiting for backend to start..."
           for i in $(seq 1 60); do
-            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
+            if curl -s http://localhost:8080/actuator/health/liveness > /dev/null 2>&1; then
               echo "Backend started!"
               break
             fi
@@ -215,10 +215,10 @@ jobs:
       - name: Verify backend is healthy
         run: |
           echo "Verifying backend health..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health/liveness)
           if [ "$STATUS" != "200" ]; then
             echo "ERROR: Backend health check failed (status: $STATUS)"
-            curl -s http://localhost:8080/actuator/health || true
+            curl -s http://localhost:8080/actuator/health/liveness || true
             exit 1
           fi
           echo "Backend is healthy!"
@@ -367,7 +367,7 @@ jobs:
           ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
           echo "Waiting for backend to start..."
           for i in $(seq 1 60); do
-            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
+            if curl -s http://localhost:8080/actuator/health/liveness > /dev/null 2>&1; then
               echo "Backend started!"
               break
             fi
@@ -770,7 +770,7 @@ jobs:
           ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="" &
           echo "Waiting for backend to start..."
           for i in $(seq 1 30); do
-            if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
+            if curl -s http://localhost:8080/actuator/health/liveness > /dev/null 2>&1; then
               echo "Backend started!"
               break
             fi

@@ -103,7 +103,7 @@ assert_gte() {
 # Execute SQL and return output
 run_sql() {
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-        -t -A -c "$1" 2>/dev/null
+        -t -A -c "$1" 2>/dev/null | tr -d '\n\r '
 }
 
 # Execute SQL and return exit code (suppresses output)
