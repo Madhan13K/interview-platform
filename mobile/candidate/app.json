@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Interview Platform - Candidate",
+    "slug": "interview-platform-candidate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "interview-candidate",
+    "plugins": ["expo-secure-store", "expo-notifications", "expo-camera"],
+    "ios": { "bundleIdentifier": "com.interviewplatform.candidate", "supportsTablet": true },
+    "android": { "package": "com.interviewplatform.candidate", "adaptiveIcon": { "backgroundColor": "#4F46E5" } }
+  }
+}

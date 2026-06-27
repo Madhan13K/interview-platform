@@ -4,11 +4,19 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'interview-platform-backend'
-    metrics_path: '/actuator/prometheus'
+  # OTel Collector exports all application metrics (traces, JVM, HTTP, DB, Kafka, Redis)
+  - job_name: 'otel-collector'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['host.docker.internal:8889']
     scrape_interval: 10s
+
+  # Application actuator metrics (requires actuator/prometheus to be publicly accessible)
+  # Currently behind auth - disable until exposed or use OTel metrics above
+  # - job_name: 'interview-platform-backend'
+  #   metrics_path: '/actuator/prometheus'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:8080']
+  #   scrape_interval: 10s
 
   - job_name: 'node-exporter'
     static_configs:

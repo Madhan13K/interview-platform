@@ -38,3 +38,6 @@ src/main/resources/certs/private.pem
 # Environment variables file - contains secrets
 .env
 
+# OpenTelemetry Java Agent (downloaded at runtime)
+opentelemetry-javaagent.jar
+

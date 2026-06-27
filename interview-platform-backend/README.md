@@ -57,10 +57,11 @@ A comprehensive interview management platform built with **Spring Boot 4.0**, pr
 | Layer | Technology |
 |-------|-----------|
 | Framework | Spring Boot 4.0.6, Java 21 |
-| Security | JWT (RSA-256), OAuth2 (Google, GitHub, Microsoft), RBAC, MFA/TOTP, SAML SSO, API Keys, Rate Limiting |
-| Database | PostgreSQL 16, Flyway Migrations (33 versioned) |
-| Caching | Redis 7 (distributed) + Caffeine (L1 local) |
-| Messaging | Apache Kafka |
+| Security | JWT (RSA-256), OAuth2 (Google, GitHub, Microsoft, Okta, Keycloak), mTLS (Mutual TLS), Client Credentials (RFC 6749), Token Exchange (RFC 8693), RBAC, MFA/TOTP, OIDC SSO, SAML SSO, API Keys, Rate Limiting |
+| Database | PostgreSQL 16, Flyway Migrations (41 versioned), Schema-per-tenant |
+| Search | Elasticsearch 8.13 (CQRS read model) |
+| Caching | Redis 7 (distributed, sole CacheManager) |
+| Messaging | Apache Kafka (event-driven architecture) |
 | Real-time | WebSocket (STOMP) + Native WebRTC |
 | File Storage | AWS S3 / LocalStack + ClamAV virus scanning |
 | AI | OpenAI GPT-4o-mini (13 AI services) |
@@ -70,15 +71,20 @@ A comprehensive interview management platform built with **Spring Boot 4.0**, pr
 | E-Signatures | DocuSign + Dropbox Sign |
 | ATS | Greenhouse, Lever, Workday bidirectional sync |
 | API Docs | SpringDoc OpenAPI (Swagger UI) |
-| Resilience | Resilience4j (circuit breakers, retry) |
+| Resilience | Resilience4j (circuit breakers, retry, dead letter queue) |
 | Scheduling | ShedLock (distributed locks) |
 | Code Execution | Docker sandboxed containers (10 languages) |
+| Reports | Custom Report Builder (PDF/Excel/CSV) + Scheduled delivery |
+| Analytics | Hiring Funnel Analytics (conversion rates, time-to-hire) |
+| Video | Async Video Interviews (one-way recording + AI scoring) |
 | Excel | Apache POI 5.2.5 |
 | PDF | OpenPDF 2.0.2 |
 | Build | Maven |
-| Containerization | Docker + Docker Compose |
-| Observability | OpenTelemetry + Prometheus + Grafana |
+| Containerization | Docker (jlink optimized, ~180MB image) + Docker Compose |
+| Observability | OpenTelemetry + Jaeger + Loki + Prometheus + Grafana |
 | Email | Spring Mail + Thymeleaf HTML templates |
+| Multi-tenancy | Schema-per-tenant (PostgreSQL schema isolation) |
+| Accessibility | WCAG 2.1 AA compliant frontend |
 | Compliance | GDPR, GST invoicing, Data Residency, SOC 2 ready |
 
 ---
@@ -92,12 +98,15 @@ src/main/java/com/interview_platform_backend/
 ├── aicoach/                # AI Interview Coach (real-time suggestions, bias alerts, time management)
 ├── aischeduling/           # ML-powered optimal interview time prediction
 ├── aiscoring/              # AI transcript analysis with scoring
+├── analytics/              # Hiring funnel analytics (conversion rates, time-to-hire, dropouts)
 ├── approval/               # Configurable approval chain workflows
+├── asyncinterview/         # Async (one-way) video interviews with AI scoring
 ├── atsintegration/         # ATS sync (Greenhouse, Lever, Workday)
 ├── audit/                  # Audit logging
 ├── backgroundcheck/        # Background checks (Checkr, Sterling)
 ├── billing/                # Multi-gateway payments (Stripe, Razorpay, PayU, Cashfree, PhonePe)
 ├── bulk/                   # Bulk operations (schedule, invite, export)
+├── customfields/           # Custom Fields Engine (user-defined fields on any entity)
 ├── calendar/               # Interviewer availability & scheduling
 ├── calendarsync/           # Bidirectional Google Calendar / Outlook sync
 ├── candidate/              # Interview management & feedback
@@ -128,7 +137,7 @@ src/main/java/com/interview_platform_backend/
 ├── meeting/                # Meeting link generation (Zoom, Google Meet, WebRTC)
 ├── messaging/              # In-app messaging / chat (WebSocket + persistent)
 ├── mobilesdk/              # Mobile SDK configuration & device registration
-├── notification/           # Email, SMS (Twilio), In-App, Push (FCM), Slack, Teams
+├── notification/           # Unified notification bus (Kafka) → Email, SMS (Twilio), In-App, Push (FCM), Slack, Teams
 ├── offer/                  # Offer letters + e-signatures (DocuSign, HelloSign)
 ├── pipeline/               # Hiring pipeline & candidate progression
 ├── plagiarism/             # Code plagiarism detection (n-gram + Jaccard)
@@ -138,23 +147,24 @@ src/main/java/com/interview_platform_backend/
 ├── referral/               # Employee referral program with bonus tracking
 ├── reminder/               # Scheduled interview reminders (24h, 1h, 15min)
 ├── replay/                 # Interview session replay with timeline scrubbing
-├── report/                 # Analytics reports + PDF generation
+├── report/                 # Custom Report Builder (PDF/Excel/CSV generation + scheduling)
 ├── retention/              # Data retention policies (scheduled auto-purge)
 ├── scheduling/             # Smart scheduling with AI time suggestions
 ├── scorecard/              # Evaluation scorecards & criteria
 ├── screeningbot/           # Automated async screening (AI evaluates responses)
+├── search/                 # CQRS + Elasticsearch (full-text search, read model)
 ├── security/               # Auth, JWT, OAuth2, MFA, SAML SSO, API Keys, Rate Limiting, Lockout
 ├── selfservice/            # Candidate self-service (preferred time slots)
 ├── sentiment/              # Real-time sentiment analysis (engagement/confidence)
 ├── slatracking/            # Recruiter SLA tracking (response time, workload, bottlenecks)
 ├── sourcing/               # AI candidate sourcing (GitHub search + skill extraction)
 ├── sourcetracking/         # Candidate source effectiveness tracking
-├── sso/                    # Enterprise SSO/SAML2 configuration
+├── sso/                    # Enterprise SSO (Okta OIDC + Keycloak fallback + SAML2 + Discovery)
 ├── tag/                    # Tagging/labeling system for entities
 ├── talentmatch/            # Smart talent matching (AI candidate-job scoring)
 ├── team/                   # Team/department organization
 ├── template/               # Interview templates with question assignments
-├── tenant/                 # Multi-tenant / Organization management
+├── tenant/                 # Multi-tenant (schema-per-tenant isolation + org management)
 ├── testcases/              # Test case validation (HackerRank-style runner)
 ├── user/                   # User management, roles, permissions
 ├── video/                  # Video recording management
@@ -167,13 +177,25 @@ src/main/java/com/interview_platform_backend/
 
 ---
 
-## 🔐 Authentication & Authorization
+## Authentication & Authorization
 
 ### Authentication Flows
 - **Local Registration** → Email + Password → Email Verification → Login → JWT
 - **OAuth2 Login** → Google/GitHub/Microsoft → Auto-registration → JWT
+- **Enterprise SSO** → Okta/Keycloak (OIDC) or OneLogin/Azure AD/Custom (SAML 2.0) → Auto-provision → JWT
 - **Token Refresh** → Rotation with replay detection
 - **Password Reset** → Forgot password → Email link → Reset
+
+### SSO Detection (4 methods, auto-prioritized)
+
+| Priority | Method | User Input | How it works |
+|----------|--------|-----------|--------------|
+| 1 | Subdomain | None | `acme.app.com` → middleware → auto-redirect to IdP |
+| 2 | Cookie | None | Return visitor → "Welcome back, continue with Acme SSO" |
+| 3 | IdP-initiated | None | User clicks app tile in Okta/Azure portal |
+| 4 | Email discovery | Email only | `user@acme.com` → API lookup → show SSO button |
+
+See [docs/SSO-ARCHITECTURE.md](docs/SSO-ARCHITECTURE.md) for the full SSO implementation guide.
 
 ### Authorization (RBAC)
 | Role | Access |
@@ -676,52 +698,240 @@ Chronological activity log per candidate showing all interactions across the pla
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Java 21+
 - Docker & Docker Compose
-- Maven
+- Maven (or use the included `./mvnw` wrapper)
 
-### Run Locally (with Docker)
+### Initial Setup
 
 ```bash
-# Clone the repository
 git clone <repo-url>
 cd interview-platform-backend
-
-# Copy env file and update values
-cp .env.example .env
-
-# Start everything (app + infrastructure + OTel Agent)
-docker compose up --build
-
-# The app starts at http://localhost:8080 with OTel Java Agent attached
-# Traces are visible at http://localhost:16686 (Jaeger UI)
+cp .env.example .env   # Update values as needed
 ```
 
-### Run Locally (without Docker for the app)
+---
+
+### Ways to Run the Application
+
+There are **4 ways** to run this application depending on your needs:
+
+| # | Mode | App runs in | Infra runs in | Observability | Best for |
+|---|------|-------------|---------------|---------------|----------|
+| 1 | Core only | Local (Maven/IDE) | Docker | None | Fast iteration, debugging |
+| 2 | With observability | Local (Maven/IDE) | Docker | Traces + Logs + Metrics | Debugging with full telemetry |
+| 3 | Full monitoring | Local (Maven/IDE) | Docker | + Grafana dashboards | Performance analysis |
+| 4 | Fully containerized | Docker | Docker | Full | CI/CD, demo, production-like |
+
+---
+
+### Mode 1: Core Infrastructure Only (fastest)
+
+Start only the databases and services the app depends on. No telemetry overhead.
 
 ```bash
-# Start infrastructure only
-docker compose up -d postgres kafka redis localstack otel-collector jaeger
+# Start infrastructure
+make up
 
-# Download the OpenTelemetry Java Agent
-curl -L -o opentelemetry-javaagent.jar \
+# Run the app (pick one)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Or from your IDE — just run the main class with profile: dev
+```
+
+**What starts:** Postgres, Redis, Kafka, Zookeeper, Keycloak, LocalStack (S3), Vault, Mailpit
+
+**Ports:**
+| Service | URL/Port |
+|---------|----------|
+| Postgres | `localhost:5433` |
+| Redis | `localhost:6379` |
+| Kafka | `localhost:9092` |
+| Keycloak | http://localhost:9090 |
+| Mailpit | http://localhost:8025 |
+| Vault | http://localhost:8200 |
+| LocalStack | http://localhost:4566 |
+
+---
+
+### Mode 2: With Observability (traces + logs)
+
+Start infrastructure + OTel Collector + Jaeger + Loki. App sends telemetry to `localhost:4318`.
+
+```bash
+# Start infrastructure + observability
+make up-otel
+
+# Run the app with OTel Java Agent attached
+./scripts/run-with-otel.sh
+```
+
+Or manually:
+```bash
+# Download agent (one-time)
+curl -sL -o opentelemetry-javaagent.jar \
   https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.12.0/opentelemetry-javaagent.jar
 
-# Run with agent attached
-java -javaagent:opentelemetry-javaagent.jar \
-     -Dotel.service.name=interview-platform-backend \
-     -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
-     -Dotel.exporter.otlp.protocol=http/protobuf \
-     -Dotel.metrics.exporter=otlp \
-     -Dotel.logs.exporter=otlp \
-     -jar target/interview-platform-backend-0.0.1-SNAPSHOT.jar
-
-# Or run without the agent (no tracing)
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+# Run with agent
+./mvnw spring-boot:run \
+  -Dspring-boot.run.jvmArguments="\
+    -javaagent:opentelemetry-javaagent.jar \
+    -Dotel.service.name=interview-platform-backend \
+    -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
+    -Dotel.exporter.otlp.protocol=http/protobuf \
+    -Dotel.metrics.exporter=otlp \
+    -Dotel.logs.exporter=otlp \
+    -Djava.net.preferIPv4Stack=true"
 ```
+
+**IDE Run Configuration** (IntelliJ / VS Code — add to VM options):
+```
+-javaagent:opentelemetry-javaagent.jar
+-Dotel.service.name=interview-platform-backend
+-Dotel.exporter.otlp.endpoint=http://localhost:4318
+-Dotel.exporter.otlp.protocol=http/protobuf
+-Dotel.metrics.exporter=otlp
+-Dotel.logs.exporter=otlp
+-Djava.net.preferIPv4Stack=true
+```
+
+**Additional ports:**
+| Service | URL |
+|---------|-----|
+| Jaeger (traces) | http://localhost:16686 |
+| Loki (logs) | http://localhost:3100 |
+| OTel Collector | `localhost:4318` (HTTP) / `localhost:4317` (gRPC) |
+
+---
+
+### Mode 3: Full Monitoring Stack (+ Prometheus & Grafana)
+
+Everything from Mode 2 plus Prometheus metrics scraping and Grafana dashboards.
+
+```bash
+# Start all infrastructure
+make up-all
+
+# Run the app with OTel agent
+./scripts/run-with-otel.sh
+```
+
+**Additional ports:**
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Grafana | http://localhost:3001 | admin / admin |
+| Prometheus | http://localhost:9091 | — |
+| Node Exporter | `localhost:9100` | — |
+
+---
+
+### Mode 4: Fully Containerized (app in Docker)
+
+Everything runs in Docker including the Spring Boot application. Useful for demos or testing the production image.
+
+```bash
+# Build and start everything
+docker compose --profile app --profile observability --profile monitoring up -d --build
+
+# Or just app + infra (no observability)
+docker compose --profile app up -d --build
+```
+
+**App is available at:** http://localhost:8080
+
+---
+
+### Mode 5: HTTPS Local Development (SSL Profile)
+
+Run the backend with HTTPS for testing secure cookies, HSTS, OAuth2 redirect URIs, and mixed-content behavior.
+
+```bash
+# Start infrastructure (same as Mode 1)
+make up
+
+# Run with SSL profile (HTTPS on port 8443)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,ssl
+
+# Or from IDE: add 'ssl' to active profiles
+```
+
+**App is available at:** https://localhost:8443 (self-signed certificate)
+
+**Frontend setup:**
+```bash
+# Use the SSL environment file
+cd ../interview-platform-frontend
+cp .env.ssl .env.local   # Or set NEXT_PUBLIC_API_URL=https://localhost:8443
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run dev
+```
+
+**What the SSL profile does:**
+- Enables TLS 1.2/1.3 on port 8443 using PKCS12 keystore (`certs/localhost.p12`)
+- Updates OAuth2 redirect URIs to `https://localhost:8443`
+- Configures strong cipher suites only
+- Uses self-signed certificate (browser will show warning — add exception)
+
+**For production:** HTTPS is terminated at the Istio Ingress Gateway (see `k8s/istio/gateway.yaml`). The application runs on plain HTTP behind the service mesh with mTLS between pods.
+
+| Component | HTTPS Strategy |
+|-----------|---------------|
+| Local dev | `application-ssl.yml` (Spring Boot embedded TLS) |
+| Kubernetes | Istio Gateway TLS termination + STRICT mTLS between services |
+| Render.com | Automatic TLS via platform (no config needed) |
+| Custom deploy | Reverse proxy (Nginx/Traefik) with `server.forward-headers-strategy=framework` |
+
+---
+
+### Makefile Reference
+
+All commands run from `interview-platform-backend/`:
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Start core infrastructure only |
+| `make up-otel` | + OTel Collector, Jaeger, Loki |
+| `make up-monitoring` | + Prometheus, Grafana, Node Exporter |
+| `make up-all` | All infrastructure services |
+| `make down` | Stop all (preserves data) |
+| `make clean` | Stop all + delete volumes (full reset) |
+| `make ps` | Show running containers |
+| `make test-traces` | Generate API calls to populate dashboards |
+| `make help` | Show all targets |
+
+### Docker Compose Profiles
+
+| Profile | Services added |
+|---------|---------------|
+| _(none)_ | Postgres, Redis, Kafka, Zookeeper, Keycloak, LocalStack, Vault, Mailpit |
+| `observability` | OTel Collector, Jaeger, Loki |
+| `monitoring` | Prometheus, Grafana, Node Exporter |
+| `app` | Spring Boot application container |
+
+Combine profiles as needed:
+```bash
+docker compose --profile observability up -d                         # infra + tracing
+docker compose --profile observability --profile monitoring up -d    # infra + full observability
+docker compose --profile app --profile observability up -d           # containerized app + tracing
+```
+
+---
+
+### Run Without Telemetry (suppress agent warnings)
+
+If you run locally without `make up-otel` and see OTel connection errors, disable the agent:
+
+```bash
+# Environment variable (in .env or shell)
+export OTEL_SDK_DISABLED=true
+
+# Or JVM property
+./mvnw spring-boot:run -Dspring-boot.run.jvmArguments="-Dotel.sdk.disabled=true"
+```
+
+---
 
 ### Run Tests
 ```bash
@@ -731,7 +941,7 @@ java -javaagent:opentelemetry-javaagent.jar \
 # Same as above (explicit)
 ./mvnw test
 
-# Integration tests (requires: docker compose up -d)
+# Integration tests (requires: make up)
 ./mvnw verify -PintegrationTests
 
 # Skip ALL tests (fastest build)
@@ -740,10 +950,22 @@ java -javaagent:opentelemetry-javaagent.jar \
 
 > **Note:** Integration tests (`*IntegrationTest.java`) are excluded from the default build 
 > because they require PostgreSQL, Redis, and Kafka. They run automatically in CI via 
-> Testcontainers, or locally after starting infrastructure with `docker compose up -d`.
+> Testcontainers, or locally after starting infrastructure with `make up`.
 
 ### API Documentation
 Once running, visit: `http://localhost:8080/swagger-ui.html`
+
+### Architecture & Feature Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/MULTI-TENANCY.md](docs/MULTI-TENANCY.md) | Schema-per-tenant architecture, org lifecycle, provisioning |
+| [docs/SSO-ARCHITECTURE.md](docs/SSO-ARCHITECTURE.md) | 4-method SSO detection, IdP configuration, login flows |
+| [docs/README-ARCHITECTURE.md](docs/README-ARCHITECTURE.md) | System architecture overview |
+| [docs/README-TECHNICAL.md](docs/README-TECHNICAL.md) | Technical implementation details |
+| [docs/README-BUSINESS.md](docs/README-BUSINESS.md) | Business features and workflows |
+| [docs/SERVICES-CREDENTIALS.md](docs/SERVICES-CREDENTIALS.md) | Service credentials and API keys |
+| [monitoring/OBSERVABILITY.md](../monitoring/OBSERVABILITY.md) | Observability stack (Jaeger, Grafana, Loki, Prometheus) |
 
 ---
 
@@ -859,15 +1081,24 @@ OpenTelemetry is a collection of APIs, SDKs, and tools for instrumenting, genera
 │  Receivers → Processors → Exporters  │
 │  (OTLP)     (batch,       (Jaeger,  │
 │              memory_limit)  Prometheus│
+│                             Loki,    │
 │                             debug)   │
-└──────────┬──────────┬────────────────┘
-           │          │
-           ▼          ▼
-┌──────────────┐  ┌───────────────────┐
-│   Jaeger     │  │   Prometheus      │
-│  (Traces UI) │  │ (Metrics scrape)  │
-│  :16686      │  │  :8889            │
-└──────────────┘  └───────────────────┘
+└──────┬──────────┬──────────┬─────────┘
+       │          │          │
+       ▼          ▼          ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐
+│  Jaeger  │ │Prometheus│ │   Loki   │
+│ (Traces) │ │(Metrics) │ │  (Logs)  │
+│  :16686  │ │  :8889   │ │  :3100   │
+└──────────┘ └──────────┘ └──────────┘
+                  │              │
+                  └──────┬───────┘
+                         ▼
+                  ┌──────────────┐
+                  │   Grafana    │
+                  │  (Dashboards)│
+                  │    :3001     │
+                  └──────────────┘
 ```
 
 ### How the Java Agent Works
@@ -949,13 +1180,15 @@ The `compose.yaml` includes the full observability stack:
 | `app` | `8080` | Application with OTel Java Agent attached |
 | `otel-collector` | `4317` (gRPC), `4318` (HTTP), `8889` (Prometheus) | Receives, processes, and routes telemetry |
 | `jaeger` | `16686` (UI), `14250` (gRPC) | Trace visualization and analysis |
+| `loki` | `3100` | Log aggregation (receives logs from OTel Collector) |
+| `mailpit` | `8025` (UI), `1025` (SMTP) | Local email testing |
 
 ### OTel Collector Configuration (otel-collector-config.yaml)
 
 The collector pipeline is configured as:
 
 ```
-Receivers (OTLP) → Processors (batch, memory_limiter) → Exporters (Jaeger, Prometheus, debug)
+Receivers (OTLP) → Processors (batch, memory_limiter) → Exporters (Jaeger, Prometheus, Loki, debug)
 ```
 
 | Component | Configuration | Purpose |
@@ -965,6 +1198,7 @@ Receivers (OTLP) → Processors (batch, memory_limiter) → Exporters (Jaeger, P
 | **Memory Limiter** | limit=512MiB, spike=128MiB | Prevents OOM by backpressuring when memory is high |
 | **Jaeger Exporter** | `jaeger:4317` (gRPC) | Sends traces to Jaeger for visualization |
 | **Prometheus Exporter** | `:8889` | Exposes metrics in Prometheus format for scraping |
+| **Loki Exporter** | `loki:3100` | Sends logs to Loki for aggregation and querying |
 | **Debug Exporter** | stdout | Logs telemetry to console (development only) |
 
 ### What Gets Traced Automatically
@@ -1054,6 +1288,239 @@ curl http://localhost:8889/metrics
 curl http://localhost:8080/actuator/health
 ```
 
+### Full Observability Stack — Quick Start
+
+All services are managed from a single `compose.yaml` using **Docker Compose profiles**:
+
+```bash
+cd interview-platform-backend
+
+# App + core infra only (no telemetry overhead)
+make up
+
+# App + tracing & logs (OTel Collector, Jaeger, Loki)
+make up-otel
+
+# App + dashboards (Prometheus, Grafana)
+make up-monitoring
+
+# Everything — full observability
+make up-all
+
+# Stop all
+make down
+
+# Generate test traces
+make test-traces
+```
+
+Or directly with Docker Compose:
+```bash
+docker compose --profile observability --profile monitoring up -d
+```
+
+#### Service URLs
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|---------|
+| **Application** | http://localhost:8080 | — | Backend API |
+| **Jaeger UI** | http://localhost:16686 | — | Distributed trace visualization |
+| **Grafana** | http://localhost:3001 | admin / admin | Dashboards (metrics, logs, traces) |
+| **Prometheus** | http://localhost:9091 | — | Metrics querying (PromQL) |
+| **Loki** | http://localhost:3100 | — | Log aggregation (LogQL) |
+| **Mailpit** | http://localhost:8025 | — | Local email testing UI |
+| **OTel Collector Health** | http://localhost:13133 | — | Collector health check |
+| **OTel Metrics** | http://localhost:8889/metrics | — | Raw Prometheus metrics from collector |
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Docker Compose Network (interview-platform-backend)                         │
+│                                                                             │
+│  ┌─────────────────┐     OTLP HTTP/protobuf      ┌───────────────────────┐ │
+│  │   app:8080      │ ─────── :4318 ────────────► │   otel-collector      │ │
+│  │ (Java Agent     │                              │   :4317 (gRPC)        │ │
+│  │  v2.12.0)       │                              │   :4318 (HTTP)        │ │
+│  └─────────────────┘                              │   :8889 (Prometheus)  │ │
+│                                                    └──┬──────┬──────┬─────┘ │
+│                                                       │      │      │       │
+│                               Traces (OTLP/gRPC)─────┘      │      │       │
+│                               Metrics (Prometheus)───────────┘      │       │
+│                               Logs (Loki push)──────────────────────┘       │
+│                                                       │      │      │       │
+│                                                       ▼      │      ▼       │
+│  ┌───────────────────┐                        ┌──────────────────────────┐  │
+│  │   jaeger          │                        │      loki                │  │
+│  │   :16686 (UI)     │                        │      :3100               │  │
+│  │   :4317 (OTLP)    │                        │  (Log aggregation)       │  │
+│  └───────────────────┘                        └──────────────────────────┘  │
+│                                                              │               │
+└──────────────────────────────────────────────────────────────┼───────────────┘
+                                                               │
+┌──────────────────────────────────────────────────────────────┼───────────────┐
+│  Docker Compose Network (monitoring)                         │               │
+│                                                              ▼               │
+│  ┌───────────────────┐     scrapes      ┌───────────────────────────────┐   │
+│  │   prometheus      │ ◄──────────────  │   grafana                     │   │
+│  │   :9091           │                  │   :3001                        │   │
+│  └───────────────────┘                  │                               │   │
+│         │ scrapes :8080/actuator         │   Datasources (pre-configured):│   │
+│         │ scrapes :8889/metrics          │   - Prometheus (metrics)       │   │
+│         │ scrapes :9100 (node)           │   - Loki (logs)               │   │
+│                                          │   - Jaeger (traces)           │   │
+│  ┌───────────────────┐                  └───────────────────────────────┘   │
+│  │   node-exporter   │                                                      │
+│  │   :9100           │                                                      │
+│  └───────────────────┘                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Generating Test Traces
+
+```bash
+# Login and get a token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@interview.local","password":"ChangeMe123!"}' \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+
+# Make API calls (each creates a distributed trace)
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/users/me
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/interviews
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/dashboard/admin
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/notifications
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/jobs
+
+# Open Jaeger to see traces
+open http://localhost:16686
+```
+
+#### Viewing Traces (Jaeger)
+
+1. Open http://localhost:16686
+2. Select service: **interview-platform-backend**
+3. Click **Find Traces**
+4. Each trace shows the full request lifecycle:
+   - HTTP handler span (method, path, status code, duration)
+   - Database query spans (SQL statement, table, duration)
+   - Redis cache spans (command, key)
+   - Kafka produce/consume spans (topic, partition)
+   - Custom `@WithSpan` business logic spans
+5. Error traces are highlighted in red with exception stack traces
+
+#### Viewing Metrics (Prometheus + Grafana)
+
+**Prometheus** (http://localhost:9091):
+- Query raw metrics using PromQL
+- Example queries:
+  ```promql
+  # Request rate by endpoint
+  rate(http_server_requests_seconds_count[5m])
+
+  # 95th percentile latency
+  histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m]))
+
+  # JVM heap memory usage
+  jvm_memory_used_bytes{area="heap"}
+
+  # OTel Collector exported spans
+  interview_platform_otelcol_exporter_sent_spans_total
+  ```
+
+**Grafana** (http://localhost:3001, login: admin/admin):
+- Pre-configured datasources: Prometheus, Loki, Jaeger
+- Create dashboards or import community dashboards:
+  - **JVM Micrometer** (ID: 4701) — JVM metrics
+  - **Spring Boot Statistics** (ID: 12464) — HTTP request metrics
+  - **Node Exporter Full** (ID: 1860) — Host system metrics
+
+Available metrics include:
+| Category | Metrics |
+|----------|---------|
+| HTTP | Request count, latency (p50/p95/p99), error rate by endpoint |
+| JVM | Heap/non-heap memory, GC pauses, thread count, class loading |
+| Database | Connection pool (active, idle, pending), query duration |
+| Kafka | Consumer lag, producer throughput, record processing time |
+| Redis | Command latency, connection pool, cache hit/miss ratio |
+| System | CPU usage, disk I/O, network (via Node Exporter) |
+
+#### Viewing Logs (Loki + Grafana)
+
+Application logs are exported via OTel Collector to Loki with trace context correlation.
+
+**In Grafana** (http://localhost:3001):
+1. Go to **Explore** (compass icon)
+2. Select datasource: **Loki**
+3. Example LogQL queries:
+   ```logql
+   # All application logs
+   {service_name="interview-platform-backend"}
+
+   # Error logs only
+   {service_name="interview-platform-backend"} |= "ERROR"
+
+   # Logs for a specific trace (copy traceId from Jaeger)
+   {service_name="interview-platform-backend"} |= "abc123def456"
+
+   # Logs with JSON parsing
+   {service_name="interview-platform-backend"} | json | level="ERROR"
+   ```
+
+4. Click on any log line to see its trace context (traceId, spanId)
+5. Click **"Jaeger"** link to jump directly to the correlated trace
+
+#### Correlating Traces and Logs
+
+The Java Agent injects trace context into every log line via MDC:
+```
+2026-06-16 10:30:00 INFO [trace_id=abc123, span_id=789012] c.i.security.JwtAuthFilter : Authenticated user
+```
+
+Workflow for debugging a production issue:
+1. **Jaeger** — Find a slow/errored trace by endpoint or duration
+2. Copy the `traceId` from the trace detail
+3. **Grafana/Loki** — Search logs: `{service_name="interview-platform-backend"} |= "<traceId>"`
+4. **Prometheus/Grafana** — Check metrics dashboard for spikes around the same timestamp
+
+#### Stopping the Stack
+
+```bash
+# Stop all services (preserves data)
+make down
+
+# Remove all data volumes (clean reset)
+make clean
+```
+
+#### Disabling Telemetry (Local Dev without Collector)
+
+If running the app locally without Docker Compose and you don't want export errors:
+
+```bash
+# Disable everything
+export OTEL_SDK_DISABLED=true
+
+# Or selectively disable signals
+export OTEL_TRACES_EXPORTER=none
+export OTEL_METRICS_EXPORTER=none
+export OTEL_LOGS_EXPORTER=none
+```
+
+#### Local Dev WITH Telemetry (mvn spring-boot:run)
+
+To run locally via Maven while still sending traces/metrics/logs to the dashboards:
+
+```bash
+# One command — starts infra containers, downloads agent, runs app with OTel
+./scripts/run-with-otel.sh
+```
+
+This starts infrastructure containers (OTel Collector, Jaeger, Loki, etc.) and attaches the
+Java Agent to your local JVM pointing at `localhost:4318`.
+
+See [monitoring/OBSERVABILITY.md](../monitoring/OBSERVABILITY.md) for the full guide.
+
 ### Environment-Specific Configuration
 
 | Environment | Sampling Rate | Endpoint | Notes |
@@ -1067,13 +1534,15 @@ curl http://localhost:8080/actuator/health
 1. **Sampling**: Set `OTEL_TRACES_SAMPLER_ARG=0.1` (10%) to reduce data volume
 2. **Collector**: Deploy OTel Collector as a sidecar or DaemonSet in Kubernetes
 3. **Backend**: Replace Jaeger with your preferred backend (Grafana Tempo, Datadog, New Relic, etc.)
-4. **Security**: Use TLS for OTLP endpoints; set `OTEL_EXPORTER_OTLP_HEADERS` for auth tokens
-5. **Resource Attributes**: Set `OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production,service.version=x.y.z`
-6. **Disable instrumentations**: If specific auto-instrumentation causes issues:
+4. **Logs Backend**: Replace Loki or add Elasticsearch for high-volume production logs
+5. **Security**: Use TLS for OTLP endpoints; set `OTEL_EXPORTER_OTLP_HEADERS` for auth tokens
+6. **Resource Attributes**: Set `OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production,service.version=x.y.z`
+7. **Disable instrumentations**: If specific auto-instrumentation causes issues:
    ```
    OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED=false
    ```
-7. **Agent version**: Pin the agent version in the Dockerfile `ARG OTEL_AGENT_VERSION=2.12.0`
+8. **Agent version**: Pin the agent version in the Dockerfile `ARG OTEL_AGENT_VERSION=2.12.0`
+9. **Alerting**: Configure Prometheus alerting rules in `monitoring/alerting-rules.yml`
 
 ---
 
@@ -2400,14 +2869,19 @@ Sandboxed code execution for coding assessments. Candidates can write and run co
 | GET | `/session/{codingSessionId}` | Get all executions for a session |
 | GET | `/languages` | List supported languages |
 
-### SSO/SAML Integration
+### SSO Integration (OpenID Connect + SAML 2.0)
 
-Enterprise SSO support for Okta, OneLogin, Azure AD, and generic SAML 2.0 providers. Configurable per-tenant.
+Enterprise SSO with **Okta OIDC (primary)** and **Keycloak OIDC (fallback)**, plus SAML 2.0 support for OneLogin, Azure AD, and generic providers. Configurable per-tenant.
+
+**SSO Strategy:**
+- **Primary:** Okta OpenID Connect (`/oauth2/authorization/okta`)
+- **Fallback:** Keycloak OpenID Connect (`/oauth2/authorization/keycloak`) — auto-triggered if Okta fails
+- **Legacy:** SAML 2.0 for OneLogin/AzureAD/Generic (`/saml2/authenticate/{registrationId}`)
 
 **API Endpoints** (`/api/v1/sso`):
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/` | Create SSO/SAML configuration (ADMIN) |
+| POST | `/` | Create SSO configuration (ADMIN) |
 | PUT | `/{configId}` | Update SSO configuration |
 | GET | `/{configId}` | Get SSO configuration |
 | GET | `/tenant/{tenantId}` | Get all SSO configs for tenant |
@@ -2415,6 +2889,14 @@ Enterprise SSO support for Okta, OneLogin, Azure AD, and generic SAML 2.0 provid
 | DELETE | `/{configId}` | Delete SSO configuration |
 | GET | `/tenant/{tenantId}/login-urls` | Get SSO login URLs (public) |
 
+**OAuth2 SSO Endpoints** (`/api/v1/auth/oauth2`):
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/providers` | List all OAuth2/OIDC providers |
+| GET | `/sso` | Get SSO provider info (primary + fallback) |
+
+**OIDC Flow:** `/oauth2/authorization/okta` → Okta login → callback → JWT issued  
+**Fallback:** If Okta fails → auto-redirect to `/oauth2/authorization/keycloak`  
 **SAML Flow:** SP-initiated SSO via `/saml2/authenticate/{registrationId}`
 
 ### Account Lockout & IP Blocking
@@ -2631,8 +3113,8 @@ app:
 ## Running All Features Locally
 
 ```bash
-# 1. Start infrastructure (includes Vault)
-docker compose up -d postgres kafka redis localstack otel-collector jaeger vault
+# 1. Start infrastructure (includes Vault + Keycloak SSO)
+docker compose up -d postgres kafka redis localstack keycloak otel-collector jaeger vault
 
 # 2. (Optional) Initialize Vault with secrets
 ./scripts/vault/init-vault.sh
@@ -2648,7 +3130,7 @@ PGPASSWORD=postgres psql -h localhost -p 5433 -U admin -d interview_platform -f 
 # - Account lockout & IP blocking
 # - Field-level encryption (dev key auto-generated)
 # - Calendar sync
-# - SSO/SAML (configure IdP in /api/v1/sso)
+# - SSO/OIDC (Okta primary + Keycloak fallback at localhost:9090, also SAML via /api/v1/sso)
 # - Offer management
 # - Job board (public at /api/v1/jobs)
 # - Structured logging (human-readable in dev)
@@ -2695,10 +3177,306 @@ HELLOSIGN_ENABLED=false
 | [README.md](README.md) | Main project overview, API endpoints, architecture |
 | [API_TESTING.md](API_TESTING.md) | Complete API testing guide with curl commands for ALL 280+ endpoints |
 | [ENTITY_DESIGN.md](ENTITY_DESIGN.md) | Entity relationship diagrams, UML, all 55+ entities |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment guide, environment variables, CI/CD, Kubernetes |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide, environment variables, CI/CD, Kubernetes |
 | [ROADMAP.md](ROADMAP.md) | Feature status, roadmap, planned features |
 | [docs/README-ARCHITECTURE.md](docs/README-ARCHITECTURE.md) | System architecture, module map, data flow diagrams |
 | [docs/README-TECHNICAL.md](docs/README-TECHNICAL.md) | Deep-dive technical reference (auth, SAML, Kafka, Redis, OTel testing) |
 | [docs/README-BUSINESS.md](docs/README-BUSINESS.md) | Business overview, value proposition, executive summary |
 | [docs/SERVICES-CREDENTIALS.md](docs/SERVICES-CREDENTIALS.md) | All services inventory, API keys, credentials setup guide |
+
+---
+
+## How to Test All Functionalities Locally
+
+### Prerequisites
+- Java 21+, Maven 3.9+, Node.js 20+, Docker (for full infrastructure)
+- k6 (for load testing): `brew install k6`
+- act (for local CI/CD): `brew install act`
+
+---
+
+### External Services & Credentials
+
+All credentials go in `interview-platform-backend/.env`. Copy from `.env.example` and fill in:
+
+| # | Service | Purpose | How to Get Credentials | Env Variables |
+|---|---------|---------|----------------------|---------------|
+| 1 | **OpenRouter** | AI (25+ services) | https://openrouter.ai/settings/keys → Create key | `OPENAI_API_KEY`, `OPENAI_API_URL`, `OPENAI_MODEL` |
+| 2 | **Google OAuth** | Login with Google | https://console.cloud.google.com/apis/credentials → Create OAuth 2.0 Client ID | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| 3 | **GitHub OAuth** | Login with GitHub | https://github.com/settings/developers → New OAuth App | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| 4 | **Okta OIDC** | Enterprise SSO | https://developer.okta.com → Create App Integration (OIDC) | `OKTA_CLIENT_ID`, `OKTA_CLIENT_SECRET`, `OKTA_ISSUER_URI` |
+| 5 | **Twilio** | SMS notifications | https://console.twilio.com → Get Account SID + Auth Token + Phone | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
+| 6 | **Zoom** | Video meetings | https://marketplace.zoom.us → Create Server-to-Server OAuth App | `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`, `ZOOM_ACCOUNT_ID` |
+| 7 | **Stripe** | Payments (intl) | https://dashboard.stripe.com/apikeys → Get Secret Key | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| 8 | **Razorpay** | Payments (India) | https://dashboard.razorpay.com/app/keys → Generate Keys | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` |
+| 9 | **Firebase** | Push notifications | https://console.firebase.google.com → Project Settings → Service Account → Generate Key | `FIREBASE_CREDENTIALS_PATH` |
+| 10 | **DocuSign** | E-signatures | https://developers.docusign.com → Get Integration Key + Account ID | `DOCUSIGN_INTEGRATION_KEY`, `DOCUSIGN_ACCOUNT_ID` |
+| 11 | **SendGrid/Gmail** | Email sending | https://sendgrid.com or Gmail App Password (https://myaccount.google.com/apppasswords) | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD` |
+| 12 | **Slack** | Notifications | https://api.slack.com/apps → Create App → Incoming Webhooks | `SLACK_WEBHOOK_URL` |
+| 13 | **Checkr** | Background checks | https://dashboard.checkr.com → API Keys | (configured in background-check module) |
+
+> **Note:** All services degrade gracefully. If a credential is missing, the feature falls back to mock/simulated responses. The app runs fine locally without any external credentials.
+
+---
+
+### 1. Run All 504 Unit Tests (No Infrastructure Required)
+
+```bash
+cd interview-platform-backend
+
+# Run all tests (mocked dependencies, no DB/Redis/Kafka needed)
+./mvnw verify -DskipIntegrationTests -B
+# Expected: Tests run: 504, Failures: 0, Errors: 0
+
+# Run specific module tests
+./mvnw test -Dtest=EventStoreServiceTest -B
+./mvnw test -Dtest=WebAuthnServiceTest -B
+./mvnw test -Dtest=ProctoringServiceV2Test -B
+./mvnw test -Dtest=DlpServiceTest -B
+./mvnw test -Dtest=PenTestServiceTest -B
+./mvnw test -Dtest=Iso27001ServiceTest -B
+./mvnw test -Dtest=MLScoringServiceTest -B
+./mvnw test -Dtest=CalibrationServiceTest -B
+./mvnw test -Dtest=SlackBotServiceTest -B
+./mvnw test -Dtest=ResumeRankingServiceTest -B
+```
+
+### 2. Run AI Live Integration Tests (Requires OpenRouter Key)
+
+```bash
+# Get key from https://openrouter.ai/settings/keys
+export OPENAI_API_KEY=sk-or-v1-your-key-here
+export OPENAI_MODEL=openai/gpt-4o-mini
+
+./mvnw test -Dtest=OpenAiLiveIntegrationTest -B
+# Tests 10 AI functions: Question Gen, Resume Parse, Interview Summary,
+# Transcript Scoring, Chatbot, Screening, Skill Extraction, Context Questions,
+# Interview Coach, Screening Evaluation
+```
+
+### 3. Run Frontend Tests
+
+```bash
+cd interview-platform-frontend
+
+# Unit tests (Vitest) - 14 tests
+npm run test
+
+# With coverage report
+npm run test:coverage
+
+# E2E tests (requires backend running on :8080)
+npx playwright test
+
+# E2E with UI
+npx playwright test --ui
+```
+
+### 4. Run with Full Infrastructure (Docker Compose)
+
+```bash
+cd interview-platform-backend
+
+# Start all services
+docker compose up -d
+# Starts: PostgreSQL:5433, Redis:6379, Kafka:9092, LocalStack(S3):4566,
+#         Keycloak:9090, Mailpit:8025, Zookeeper:2181
+
+# Verify all healthy
+docker compose ps
+
+# Run backend (uses .env automatically)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Run frontend (separate terminal)
+cd ../interview-platform-frontend && npm run dev
+# App available at http://localhost:3000
+# API at http://localhost:8080
+# Swagger UI at http://localhost:8080/swagger-ui.html
+```
+
+### 5. Test All API Endpoints (curl)
+
+```bash
+BASE=http://localhost:8080
+
+# === Authentication ===
+TOKEN=$(curl -s -X POST $BASE/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@interview.local","password":"ChangeMe123!"}' \
+  | jq -r '.accessToken // .token')
+
+# === AI Services ===
+curl -s -X POST $BASE/api/v1/ai/suggest-questions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"jobTitle":"Senior Java Developer","difficulty":"MEDIUM","category":"TECHNICAL","skills":["Java","Spring"],"count":3}' | jq
+
+# === Compliance ===
+curl -s -X POST $BASE/api/v1/compliance/audit/SOC2 -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/soc2/readiness -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/iso27001/risks/matrix -H "Authorization: Bearer $TOKEN" | jq
+
+# === Security ===
+curl -s -X POST $BASE/api/v1/webauthn/register/start \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"credentialName":"Test Key","authenticatorType":"platform"}' | jq
+curl -s -X POST $BASE/api/v1/dlp/scan \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"content":"My SSN is 123-45-6789 and card 4111-1111-1111-1111"}' | jq
+
+# === Intelligence ===
+curl -s $BASE/api/v1/interview-intelligence/insights -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/calibration/org -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/engagement-scores/top?limit=5 -H "Authorization: Bearer $TOKEN" | jq
+
+# === Hiring ===
+curl -s $BASE/api/v1/cost-per-hire/breakdown -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/headcount -H "Authorization: Bearer $TOKEN" | jq
+curl -s $BASE/api/v1/candidate-portal/me -H "Authorization: Bearer $TOKEN" | jq
+
+# === Event Sourcing ===
+curl -s "$BASE/api/v1/events/type/INTERVIEW_CREATED?since=2026-01-01T00:00:00Z" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# === Report Builder ===
+curl -s $BASE/api/v1/report-builder -H "Authorization: Bearer $TOKEN" | jq
+
+# === ML Scoring ===
+curl -s -X POST $BASE/api/v1/ml-scoring/train -H "Authorization: Bearer $TOKEN" | jq
+
+# === Proctoring ===
+curl -s $BASE/api/v1/proctoring/flagged -H "Authorization: Bearer $TOKEN" | jq
+
+# === Mobile Config (public - no auth) ===
+curl -s $BASE/api/v1/mobile/config?platform=ios&version=2.0.0 | jq
+```
+
+### 6. Load Testing (k6)
+
+```bash
+brew install k6
+
+cd tests/load
+k6 run --vus 10 --duration 30s concurrent-interviews.js
+k6 run --vus 50 --duration 1m rate-limiter-stress.js
+k6 run --vus 20 --duration 30s code-save-throughput.js
+k6 run --vus 10 --duration 30s concurrent-code-execution.js
+k6 run --vus 100 --duration 30s bulk-schedule.js
+```
+
+### 7. E2E Playwright Tests
+
+```bash
+cd interview-platform-frontend
+
+# Install browsers
+npx playwright install
+
+# Run all E2E tests (requires backend on :8080)
+npx playwright test
+
+# Run with headed browser (visible)
+npx playwright test --headed
+
+# Run specific test file
+npx playwright test e2e/critical-flows.spec.ts
+
+# View report
+npx playwright show-report
+```
+
+### 8. Test CI/CD Workflows Locally
+
+```bash
+brew install act
+
+# Run PR workflow
+act pull_request -W .github/workflows/pr.yml
+
+# Run dependency audit
+act workflow_dispatch -W .github/workflows/dependency-audit.yml
+
+# Run OWASP ZAP scan
+act workflow_dispatch -W .github/workflows/owasp-zap.yml
+```
+
+### 9. Test Mobile Apps
+
+```bash
+# Candidate app
+cd mobile/candidate
+npm install
+npx expo start  # Scan QR with Expo Go app
+
+# Interviewer app
+cd mobile/interviewer
+npm install
+npx expo start
+```
+
+---
+
+### Test Coverage Summary
+
+| Category | Count | What's Tested |
+|----------|-------|---------------|
+| Backend Unit Tests | 504 | All services, controllers, security, AI, compliance, ML |
+| AI Live Tests (OpenRouter) | 10 | All 10 AI functions with real API calls |
+| Frontend Unit Tests (Vitest) | 14 | Components, stores, hooks |
+| E2E Tests (Playwright) | 10+ | Login, dashboard, interviews, scheduling, API health |
+| Load Tests (k6) | 5 scripts | Concurrent users, rate limiting, throughput, WebSocket |
+| Security Tests | 80+ | JWT validation, MFA, SAML, OAuth2 PKCE, rate limiting, DLP |
+| Compliance Tests | 15+ | SOC2 checks, ISO27001 policies, HIPAA audit, pen test findings |
+
+### Environment Variable Quick Reference
+
+```env
+# Required for basic operation
+DB_URL=jdbc:postgresql://localhost:5433/interview_platform
+DB_USERNAME=admin
+DB_PASSWORD=postgres
+REDIS_HOST=localhost
+JWT_SECRET=<generate: openssl rand -base64 48>
+JWT_REFRESH_SECRET=<generate: openssl rand -base64 48>
+FRONTEND_URL=http://localhost:3000
+
+# AI (OpenRouter) - https://openrouter.ai/settings/keys
+OPENAI_API_KEY=sk-or-v1-your-key
+OPENAI_API_URL=https://openrouter.ai/api/v1/chat/completions
+OPENAI_MODEL=openai/gpt-4o-mini
+
+# OAuth2 - https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
+
+# GitHub - https://github.com/settings/developers
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-secret
+
+# SMS - https://console.twilio.com
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=your-auth-token
+TWILIO_FROM_NUMBER=+1234567890
+
+# Email - Gmail App Password or SendGrid
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+
+# Payments - https://dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Zoom - https://marketplace.zoom.us (Server-to-Server OAuth)
+ZOOM_CLIENT_ID=your-zoom-client-id
+ZOOM_CLIENT_SECRET=your-zoom-secret
+ZOOM_ACCOUNT_ID=your-account-id
+
+# Slack - https://api.slack.com/apps
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+
+# Encryption
+ENCRYPTION_SECRET_KEY=<generate: openssl rand -base64 32>
+```
 

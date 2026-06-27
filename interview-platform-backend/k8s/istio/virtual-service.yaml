@@ -1,0 +1,66 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: backend-routing
+  namespace: interview-platform
+spec:
+  hosts:
+    - backend-service
+  http:
+    # API v2 routes (header-based)
+    - match:
+        - headers:
+            X-API-Version:
+              exact: "2"
+      route:
+        - destination:
+            host: backend-service
+            subset: v2
+          weight: 100
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+    # Default route (v1)
+    - route:
+        - destination:
+            host: backend-service
+            subset: v1
+          weight: 100
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+      fault:
+        delay:
+          percentage:
+            value: 0
+          fixedDelay: 0s
+---
+# Canary deployment support
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: backend-canary
+  namespace: interview-platform
+spec:
+  hosts:
+    - backend-service
+  http:
+    - match:
+        - headers:
+            x-canary:
+              exact: "true"
+      route:
+        - destination:
+            host: backend-service
+            subset: canary
+    - route:
+        - destination:
+            host: backend-service
+            subset: stable
+          weight: 95
+        - destination:
+            host: backend-service
+            subset: canary
+          weight: 5

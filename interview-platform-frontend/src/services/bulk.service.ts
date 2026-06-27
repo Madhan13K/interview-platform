@@ -1,51 +1,39 @@
 import api from "@/lib/axios";
-import { BULK_ENDPOINTS } from "@/lib/api-endpoints";
 
-export interface BulkScheduleRequest {
-  interviews: Array<{
-    title: string;
-    type: string;
-    candidateId: string;
-    interviewerIds: string[];
-    scheduledAt: string;
-    duration: number;
-  }>;
-}
-
-export interface BulkInviteRequest {
-  emails: string[];
-  jobPositionId?: string;
-  message?: string;
-}
-
-export interface BulkExportRequest {
-  entityType: string;
-  format: "CSV" | "JSON" | "PDF";
-  filters?: Record<string, unknown>;
-}
-
-export interface BulkOperationResponse {
+export interface BulkOperationStatus {
   id: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  operationType: string;
+  entityType: string;
   totalItems: number;
   processedItems: number;
-  failedItems: number;
-  errors?: string[];
+  successCount: number;
+  failureCount: number;
+  status: string;
+  errorSummary?: { index: number; error: string }[];
+  createdAt: string;
 }
 
-export const bulkService = {
-  scheduleInterviews: async (data: BulkScheduleRequest): Promise<BulkOperationResponse> => {
-    const res = await api.post(BULK_ENDPOINTS.scheduleInterviews, data);
-    return res.data;
-  },
+export const bulkCreate = async (entityType: string, items: Record<string, unknown>[]): Promise<BulkOperationStatus> => {
+  const res = await api.post("/api/v1/bulk/create", { entityType, items });
+  return res.data;
+};
 
-  inviteCandidates: async (data: BulkInviteRequest): Promise<BulkOperationResponse> => {
-    const res = await api.post(BULK_ENDPOINTS.inviteCandidates, data);
-    return res.data;
-  },
+export const bulkUpdate = async (entityType: string, items: Record<string, unknown>[]): Promise<BulkOperationStatus> => {
+  const res = await api.post("/api/v1/bulk/update", { entityType, items });
+  return res.data;
+};
 
-  export: async (data: BulkExportRequest): Promise<BulkOperationResponse> => {
-    const res = await api.post(BULK_ENDPOINTS.export, data);
-    return res.data;
-  },
+export const bulkDelete = async (entityType: string, ids: string[]): Promise<BulkOperationStatus> => {
+  const res = await api.post("/api/v1/bulk/delete", { entityType, ids });
+  return res.data;
+};
+
+export const getOperationStatus = async (operationId: string): Promise<BulkOperationStatus> => {
+  const res = await api.get(`/api/v1/bulk/operations/${operationId}`);
+  return res.data;
+};
+
+export const listOperations = async (): Promise<BulkOperationStatus[]> => {
+  const res = await api.get("/api/v1/bulk/operations");
+  return res.data;
 };

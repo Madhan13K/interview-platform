@@ -5,11 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -24,7 +21,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableCaching
@@ -46,27 +42,28 @@ public class CacheConfig {
 
     @Bean
     @Primary
-    @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
     public CacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
         Jackson2JsonRedisSerializer<Object> serializer = jsonRedisSerializer();
-        
+
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(15))
+                .entryTtl(Duration.ofMinutes(5))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
                 .disableCachingNullValues();
 
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
-        // Short TTL caches (frequently changing data)
-        cacheConfigurations.put("interviews", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("interviewsByCandidate", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("interviewsByInterviewer", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("notifications", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+
+        // Per-cache TTL configuration
+        cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("userProfiles", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("interviews", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigurations.put("interviewsByCandidate", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigurations.put("interviewsByInterviewer", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigurations.put("notifications", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+        cacheConfigurations.put("search", defaultConfig.entryTtl(Duration.ofSeconds(30)));
         cacheConfigurations.put("dashboard", defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
         // Medium TTL caches
-        cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-        cacheConfigurations.put("userProfiles", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put("jobPositions", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put("organizations", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put("webhooks", defaultConfig.entryTtl(Duration.ofMinutes(10)));
@@ -91,32 +88,7 @@ public class CacheConfig {
                 .build();
     }
 
-    @Bean("caffeineCacheManager")
-    @ConditionalOnProperty(name = "spring.cache.type", havingValue = "none")
-    @Primary
-    public CacheManager caffeineCacheManagerPrimary() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-                .maximumSize(100)
-                .expireAfterWrite(5, TimeUnit.MINUTES));
-        return cacheManager;
-    }
-
-    @Bean("caffeineCacheManagerLocal")
-    @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
-    public CacheManager caffeineCacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-                "localRoles", "localPermissions"
-        );
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-                .maximumSize(500)
-                .expireAfterWrite(5, TimeUnit.MINUTES)
-                .recordStats());
-        return cacheManager;
-    }
-
     @Bean
-    @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         Jackson2JsonRedisSerializer<Object> serializer = jsonRedisSerializer();
         RedisTemplate<String, Object> template = new RedisTemplate<>();

@@ -1,0 +1,27 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: interview-platform-gateway
+  namespace: interview-platform
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: interview-platform-tls
+      hosts:
+        - "*.interview-platform.com"
+        - "interview-platform.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.interview-platform.com"
+      tls:
+        httpsRedirect: true

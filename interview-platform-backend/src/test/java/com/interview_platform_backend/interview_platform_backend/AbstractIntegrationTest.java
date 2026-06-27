@@ -64,7 +64,19 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.cache.type", () -> "none");
         registry.add("spring.autoconfigure.exclude", () ->
                 "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
-                "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration");
+                "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration," +
+                "org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration," +
+                "org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration," +
+                "org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration," +
+                "org.springframework.cloud.vault.config.VaultReactiveAutoConfiguration," +
+                "org.springframework.cloud.vault.config.VaultAutoConfiguration");
+
+        // Vault - disable for tests
+        registry.add("spring.cloud.vault.enabled", () -> "false");
+        registry.add("spring.cloud.vault.token", () -> "test-disabled");
+
+        // Search/ES - disable for tests
+        registry.add("app.search.enabled", () -> "false");
 
         // Docker compose - disable
         registry.add("spring.docker.compose.enabled", () -> "false");

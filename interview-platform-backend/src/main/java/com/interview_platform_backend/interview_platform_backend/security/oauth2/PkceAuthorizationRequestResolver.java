@@ -10,14 +10,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * Custom authorization request resolver that forces PKCE (S256) on ALL OAuth2
- * authorization requests — regardless of whether the client is confidential or public.
+ * authorization requests for defense-in-depth security.
  *
- * <p>This ensures that even if a confidential client is used as a BFF for an SPA,
- * the authorization code exchange is protected against interception attacks.
- *
- * <p>Spring Security already supports PKCE natively for public clients
- * (client-authentication-method: none), but this resolver extends it to
- * ALL registrations for defense-in-depth.
+ * <p>All providers (Okta, Keycloak, Google, GitHub) must have PKCE enabled:
+ * - Okta: General Settings > PKCE > "Require PKCE as additional verification"
+ * - Keycloak: Client > Advanced > Proof Key for Code Exchange > "S256"
+ * - Google/GitHub: Support PKCE automatically
  */
 @Component
 public class PkceAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {

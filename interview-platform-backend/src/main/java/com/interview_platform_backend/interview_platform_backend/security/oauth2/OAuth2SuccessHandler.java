@@ -114,6 +114,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         AuthProvider authProvider = switch (registrationId) {
             case "github" -> AuthProvider.GITHUB;
             case "microsoft" -> AuthProvider.MICROSOFT;
+            case "okta" -> AuthProvider.OKTA;
+            case "keycloak" -> AuthProvider.KEYCLOAK;
             default -> AuthProvider.GOOGLE;
         };
 
@@ -158,6 +160,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
      * - Google: "email" attribute
      * - GitHub: "email" attribute (maybe null if private; falls back to login@github)
      * - Microsoft: "email" or "preferred_username"
+     * - Okta: "email" (standard OIDC claim)
+     * - Keycloak: "email" or "preferred_username"
      */
     private String extractEmail(OAuth2User oAuth2User, String registrationId) {
         return switch (registrationId) {
@@ -171,6 +175,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 yield email;
             }
             case "microsoft" -> {
+                String email = oAuth2User.getAttribute("email");
+                if (email == null || email.isBlank()) {
+                    email = oAuth2User.getAttribute("preferred_username");
+                }
+                yield email;
+            }
+            case "okta" -> {
+                String email = oAuth2User.getAttribute("email");
+                if (email == null || email.isBlank()) {
+                    email = oAuth2User.getAttribute("preferred_username");
+                }
+                if (email == null || email.isBlank()) {
+                    email = oAuth2User.getAttribute("sub");
+                }
+                yield email;
+            }
+            case "keycloak" -> {
                 String email = oAuth2User.getAttribute("email");
                 if (email == null || email.isBlank()) {
                     email = oAuth2User.getAttribute("preferred_username");
@@ -201,6 +222,25 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     yield displayName.trim().split("\\s+", 2)[0];
                 }
                 yield "User";
+            }
+            case "okta" -> {
+                String givenName = oAuth2User.getAttribute("given_name");
+                if (givenName != null && !givenName.isBlank()) yield givenName;
+                String name = oAuth2User.getAttribute("name");
+                if (name != null && !name.isBlank()) {
+                    yield name.trim().split("\\s+", 2)[0];
+                }
+                yield "User";
+            }
+            case "keycloak" -> {
+                String givenName = oAuth2User.getAttribute("given_name");
+                if (givenName != null && !givenName.isBlank()) yield givenName;
+                String name = oAuth2User.getAttribute("name");
+                if (name != null && !name.isBlank()) {
+                    yield name.trim().split("\\s+", 2)[0];
+                }
+                String preferred = oAuth2User.getAttribute("preferred_username");
+                yield preferred != null ? preferred : "User";
             }
             default -> { // google
                 String firstName = oAuth2User.getAttribute("given_name");
@@ -234,6 +274,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 String displayName = oAuth2User.getAttribute("displayName");
                 if (displayName != null && !displayName.isBlank()) {
                     String[] parts = displayName.trim().split("\\s+", 2);
+                    yield parts.length > 1 ? parts[1] : "";
+                }
+                yield "";
+            }
+            case "keycloak" -> {
+                String familyName = oAuth2User.getAttribute("family_name");
+                if (familyName != null && !familyName.isBlank()) yield familyName;
+                String name = oAuth2User.getAttribute("name");
+                if (name != null && !name.isBlank()) {
+                    String[] parts = name.trim().split("\\s+", 2);
                     yield parts.length > 1 ? parts[1] : "";
                 }
                 yield "";

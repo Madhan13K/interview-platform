@@ -1,0 +1,61 @@
+# Deny all by default
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: interview-platform
+spec:
+  {}
+---
+# Allow frontend to backend
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: interview-platform
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/interview-platform/sa/frontend"]
+      to:
+        - operation:
+            paths: ["/api/*", "/oauth2/*", "/saml2/*", "/ws/*"]
+            methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+---
+# Allow ingress gateway
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress
+  namespace: interview-platform
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  rules:
+    - from:
+        - source:
+            namespaces: ["istio-system"]
+---
+# Allow Prometheus scraping
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-prometheus
+  namespace: interview-platform
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  rules:
+    - from:
+        - source:
+            namespaces: ["monitoring"]
+      to:
+        - operation:
+            paths: ["/actuator/prometheus", "/actuator/health"]
+            methods: ["GET"]

@@ -1,0 +1,25 @@
+# Enforce mTLS across the namespace
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: interview-platform
+spec:
+  mtls:
+    mode: STRICT
+---
+# Allow plaintext for health checks from outside mesh
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: health-check-exception
+  namespace: interview-platform
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8080:
+      mode: PERMISSIVE

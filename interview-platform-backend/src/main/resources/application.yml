@@ -11,15 +11,22 @@ spring:
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: ${DB_POOL_MAX:10}
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      idle-timeout: 300000          # 5 minutes
+      max-lifetime: 1800000         # 30 minutes
+      connection-timeout: 30000     # 30 seconds
+      leak-detection-threshold: 60000  # 1 minute (detect leaked connections)
+      pool-name: interview-platform-pool
+      connection-init-sql: SET search_path TO public
+      data-source-properties:
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStats: true
 
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:none}
     show-sql: false
     open-in-view: false
     properties:
@@ -37,13 +44,13 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:placeholder}
-            client-secret: ${GOOGLE_CLIENT_SECRET:placeholder}
+            client-id: ${GOOGLE_CLIENT_ID:placeholder-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:placeholder-google-client-secret}
             scope: [openid, profile, email]
             redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/google"
           github:
-            client-id: ${GITHUB_CLIENT_ID:placeholder}
-            client-secret: ${GITHUB_CLIENT_SECRET:placeholder}
+            client-id: ${GITHUB_CLIENT_ID:Ov23lik0ITpRpUhYTS0K}
+            client-secret: ${GITHUB_CLIENT_SECRET:5ba116eb19f7e2b283308e5623a16aa0ee30131b}
             scope: [user:email, read:user]
             redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/github"
           microsoft:
@@ -53,6 +60,22 @@ spring:
             redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/microsoft"
             client-name: Microsoft
             authorization-grant-type: authorization_code
+          okta:
+            client-id: ${OKTA_CLIENT_ID:0oa14fz2oamAXh9h1698}
+            client-secret: ${OKTA_CLIENT_SECRET:qi0rnLoP4ROvrCtiJCS6gJiq-BKFTL518hAuCzww41BXmwoNmBdFbcbeCAx6voHS}
+            scope: [openid, profile, email]
+            redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/okta"
+            client-name: Okta
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_basic
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID:interview-platform}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:FqQdEOnNuda9oTWvk2AgcKdOARHUCQgV}
+            scope: [openid, profile, email]
+            redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/keycloak"
+            client-name: Keycloak
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_basic
         provider:
           google:
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
@@ -69,6 +92,18 @@ spring:
             token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
             user-info-uri: https://graph.microsoft.com/v1.0/me
             user-name-attribute: id
+          okta:
+            authorization-uri: ${OKTA_AUTH_URL:https://integrator-8402944.okta.com/oauth2/default/v1/authorize}
+            token-uri: ${OKTA_TOKEN_URL:https://integrator-8402944.okta.com/oauth2/default/v1/token}
+            user-info-uri: ${OKTA_USERINFO_URL:https://integrator-8402944.okta.com/oauth2/default/v1/userinfo}
+            jwk-set-uri: ${OKTA_JWKS_URL:https://integrator-8402944.okta.com/oauth2/default/v1/keys}
+            user-name-attribute: email
+          keycloak:
+            authorization-uri: ${KEYCLOAK_AUTH_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_TOKEN_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/token}
+            user-info-uri: ${KEYCLOAK_USERINFO_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/userinfo}
+            jwk-set-uri: ${KEYCLOAK_JWKS_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/certs}
+            user-name-attribute: preferred_username
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -99,7 +134,7 @@ spring:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:noreply@interview-platform.com}
-    password: ${MAIL_PASSWORD:changeme}
+    password: ${MAIL_PASSWORD:qcyu pjrt xjmx jbxd}
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
@@ -128,6 +163,9 @@ spring:
   mvc:
     async:
       request-timeout: 30000
+
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
 
   data:
     redis:
@@ -162,6 +200,9 @@ server:
     max-connections: 10000
     accept-count: 100
     connection-timeout: 20000
+    max-http-form-post-size: 2MB
+    max-swallow-size: 2MB
+  max-http-request-header-size: 16KB
   error:
     include-message: always
     include-binding-errors: always
@@ -197,6 +238,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  health:
+    vault:
+      enabled: ${VAULT_HEALTH_ENABLED:false}
 
 # --- Logging ---
 logging:
@@ -207,11 +251,51 @@ logging:
 # --- Application Custom Properties ---
 app:
   oauth2:
-    redirect-uri: ${FRONTEND_URL:http://localhost:5173}/oauth2/callback
+    redirect-uri: ${FRONTEND_URL:http://localhost:3000}/oauth2/callback
+    resource-server:
+      enabled: ${OAUTH2_RESOURCE_SERVER_ENABLED:true}
+      issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080}
+    # OAuth2 Client Credentials - Service-to-service authentication
+    clients:
+      notification-service:
+        secret: ${OAUTH2_CLIENT_NOTIFICATION_SECRET:}
+      scheduling-service:
+        secret: ${OAUTH2_CLIENT_SCHEDULING_SECRET:}
+      analytics-service:
+        secret: ${OAUTH2_CLIENT_ANALYTICS_SECRET:}
+      webhook-service:
+        secret: ${OAUTH2_CLIENT_WEBHOOK_SECRET:}
+      external-partner:
+        secret: ${OAUTH2_CLIENT_EXTERNAL_PARTNER_SECRET:}
+  # --- mTLS (Mutual TLS) ---
+  mtls:
+    enabled: ${MTLS_ENABLED:false}
+    identity-extraction: ${MTLS_IDENTITY_EXTRACTION:CN}
+    allowed-cn-patterns: ${MTLS_ALLOWED_CN_PATTERNS:}
+    allowed-organizations: ${MTLS_ALLOWED_ORGANIZATIONS:}
+    crl-enabled: ${MTLS_CRL_ENABLED:false}
+    crl-url: ${MTLS_CRL_URL:}
+    ocsp-enabled: ${MTLS_OCSP_ENABLED:false}
+    certificate-role-mapping:
+      enabled: ${MTLS_ROLE_MAPPING_ENABLED:false}
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+    client:
+      key-store: ${MTLS_CLIENT_KEYSTORE_PATH:classpath:certs/client-keystore.p12}
+      key-store-password: ${MTLS_CLIENT_KEYSTORE_PASSWORD:changeit}
+      trust-store: ${MTLS_CLIENT_TRUSTSTORE_PATH:classpath:certs/server-truststore.p12}
+      trust-store-password: ${MTLS_CLIENT_TRUSTSTORE_PASSWORD:changeit}
+  multitenancy:
+    schema-per-tenant: ${SCHEMA_PER_TENANT:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  security:
+    max-request-body-size: ${MAX_REQUEST_BODY_SIZE:2097152}  # 2MB limit for JSON payloads (DoS prevention)
   kafka:
     enabled: ${KAFKA_ENABLED:true}
+  search:
+    enabled: ${SEARCH_ENABLED:false}
   notifications:
     enabled: ${NOTIFICATIONS_ENABLED:true}
   sms:
@@ -222,28 +306,38 @@ app:
     verification-base-url: ${FRONTEND_URL:http://localhost:5173}/verify-email
   meeting:
     zoom:
-      api-key: ${ZOOM_API_KEY:}
-      api-secret: ${ZOOM_API_SECRET:}
+      enabled: ${ZOOM_ENABLED:true}
+      account-id: ${ZOOM_ACCOUNT_ID:}
+      client-id: ${ZOOM_CLIENT_ID:Y0T49c1URwmOZjxHVE7mSA}
+      client-secret: ${ZOOM_CLIENT_SECRET:bwAV4mu3ymDrdu7ULaiH6JluupVw4umO}
     google:
-      client-id: ${GOOGLE_MEET_CLIENT_ID:}
+      client-id: ${GOOGLE_MEET_CLIENT_ID:placeholder-google-client-id}
   slack:
-    enabled: ${SLACK_ENABLED:false}
-    webhook-url: ${SLACK_WEBHOOK_URL:}
+    enabled: ${SLACK_ENABLED:true}
+    webhook-url: ${SLACK_WEBHOOK_URL:https://hooks.slack.com/services/PLACEHOLDER/PLACEHOLDER/PLACEHOLDER}
   teams:
     enabled: ${TEAMS_ENABLED:false}
     webhook-url: ${TEAMS_WEBHOOK_URL:}
   sso:
     base-url: ${SSO_BASE_URL:http://localhost:8080}
+    keycloak:
+      enabled: ${KEYCLOAK_SSO_ENABLED:true}
+      server-url: ${KEYCLOAK_SERVER_URL:http://localhost:9090}
+      realm: ${KEYCLOAK_REALM:interview-platform}
+      client-id: ${KEYCLOAK_CLIENT_ID:interview-platform}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:interview-platform-secret}
+      admin-username: ${KEYCLOAK_ADMIN:admin}
+      admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
   calendar-sync:
     enabled: ${CALENDAR_SYNC_ENABLED:true}
     sync-interval-minutes: ${CALENDAR_SYNC_INTERVAL:15}
   offer:
     default-expiry-days: ${OFFER_EXPIRY_DAYS:7}
     docusign:
-      enabled: ${DOCUSIGN_ENABLED:false}
+      enabled: ${DOCUSIGN_ENABLED:true}
       api-base-url: ${DOCUSIGN_API_URL:https://demo.docusign.net/restapi}
-      account-id: ${DOCUSIGN_ACCOUNT_ID:}
-      integration-key: ${DOCUSIGN_INTEGRATION_KEY:}
+      account-id: ${DOCUSIGN_ACCOUNT_ID:d1b2fde8-6054-4df7-a895-b63868d8167a}
+      integration-key: ${DOCUSIGN_INTEGRATION_KEY:973c20fd-5630-49b7-8e93-eaee398062dd}
     hellosign:
       enabled: ${HELLOSIGN_ENABLED:false}
       api-key: ${HELLOSIGN_API_KEY:}
@@ -362,15 +456,16 @@ app:
     response-time-hours: ${SLA_RESPONSE_TIME_HOURS:48}
     feedback-time-hours: ${SLA_FEEDBACK_TIME_HOURS:24}
     scheduling-time-hours: ${SLA_SCHEDULING_TIME_HOURS:72}
-  # --- AI (OpenAI) ---
+  # --- AI (OpenRouter) ---
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:}
-      model: ${OPENAI_MODEL:gpt-4o-mini}
+      api-url: ${OPENAI_API_URL:https://openrouter.ai/api/v1/chat/completions}
+      model: ${OPENAI_MODEL:openai/gpt-4o-mini}
       max-tokens: ${OPENAI_MAX_TOKENS:1000}
       temperature: ${OPENAI_TEMPERATURE:0.7}
     scoring:
-      enabled: ${AI_SCORING_ENABLED:false}
+      enabled: ${AI_SCORING_ENABLED:true}
   # --- Virus Scanning ---
   virus-scan:
     enabled: ${VIRUS_SCAN_ENABLED:false}
@@ -383,6 +478,20 @@ app:
     delivery-tracking:
       enabled: ${EMAIL_DELIVERY_TRACKING:false}
     bounce-threshold: ${EMAIL_BOUNCE_THRESHOLD:5}
+  # --- Candidate Sourcing ---
+  sourcing:
+    github:
+      token: ${GITHUB_SOURCING_TOKEN:}
+  # --- Data Residency ---
+  data-residency:
+    default-region: ${DATA_RESIDENCY_DEFAULT_REGION:us-east-1}
+    eu-region: ${DATA_RESIDENCY_EU_REGION:eu-west-1}
+    ap-region: ${DATA_RESIDENCY_AP_REGION:ap-south-1}
+  # --- Mobile SDK ---
+  mobile:
+    min-version: ${MOBILE_MIN_VERSION:1.0.0}
+    force-update: ${MOBILE_FORCE_UPDATE:false}
+    maintenance-mode: ${MOBILE_MAINTENANCE_MODE:false}
 
 # --- Code Execution Engine ---
 code-execution:

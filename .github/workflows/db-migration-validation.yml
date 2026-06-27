@@ -1,0 +1,98 @@
+name: Database Migration Validation
+
+on:
+  pull_request:
+    paths:
+      - 'interview-platform-backend/src/main/resources/db/migration/**'
+  workflow_dispatch:
+
+jobs:
+  validate-migrations:
+    name: Validate Flyway Migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: interview_platform_validation
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: --health-cmd="pg_isready -U admin" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Flyway Validate
+        working-directory: interview-platform-backend
+        env:
+          DB_URL: jdbc:postgresql://localhost:5433/interview_platform_validation
+          DB_USERNAME: admin
+          DB_PASSWORD: postgres
+        run: |
+          ./mvnw flyway:migrate flyway:validate -B \
+            -Dflyway.url=$DB_URL \
+            -Dflyway.user=$DB_USERNAME \
+            -Dflyway.password=$DB_PASSWORD \
+            -Dflyway.locations=classpath:db/migration
+
+      - name: Check Migration Naming Convention
+        working-directory: interview-platform-backend/src/main/resources/db/migration
+        run: |
+          echo "Validating migration file naming..."
+          ERRORS=0
+          for f in *.sql; do
+            if ! echo "$f" | grep -qP '^V\d+__[a-z_]+\.sql$'; then
+              echo "::warning::Non-standard migration name: $f (expected V{N}__{description}.sql)"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::warning::$ERRORS migration(s) have non-standard names"
+          fi
+          echo "Migration naming check complete"
+
+      - name: Check for Destructive Operations
+        working-directory: interview-platform-backend/src/main/resources/db/migration
+        run: |
+          echo "Scanning for potentially destructive operations..."
+          DANGEROUS=0
+          for f in *.sql; do
+            if grep -iqP '(DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM .* WHERE 1|ALTER TABLE .* DROP)' "$f"; then
+              echo "::error::Potentially destructive operation in $f"
+              grep -inP '(DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM .* WHERE 1|ALTER TABLE .* DROP)' "$f"
+              DANGEROUS=$((DANGEROUS + 1))
+            fi
+          done
+          if [ $DANGEROUS -gt 0 ]; then
+            echo "::error::Found $DANGEROUS migration(s) with destructive operations. Requires manual approval."
+            exit 1
+          fi
+          echo "No destructive operations found"
+
+      - name: Dry-Run Against Empty DB
+        working-directory: interview-platform-backend
+        run: |
+          echo "Running all migrations from scratch (clean slate test)..."
+          ./mvnw flyway:clean flyway:migrate -B \
+            -Dflyway.url=jdbc:postgresql://localhost:5433/interview_platform_validation \
+            -Dflyway.user=admin \
+            -Dflyway.password=postgres \
+            -Dflyway.cleanDisabled=false
+          echo "All migrations applied successfully from scratch!"
+
+      - name: Generate Schema Diff Report
+        working-directory: interview-platform-backend
+        run: |
+          ./mvnw flyway:info -B \
+            -Dflyway.url=jdbc:postgresql://localhost:5433/interview_platform_validation \
+            -Dflyway.user=admin \
+            -Dflyway.password=postgres | tee migration-info.txt
+          echo "::notice::Migration info saved"

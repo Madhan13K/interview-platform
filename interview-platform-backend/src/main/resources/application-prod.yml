@@ -24,9 +24,18 @@ spring:
     import: vault://
 
 server:
+  # HTTPS is terminated at Istio Ingress Gateway (k8s/istio/gateway.yaml)
+  # Spring Boot runs on plain HTTP behind the mesh; trust proxy headers
+  forward-headers-strategy: framework
   error:
     include-message: never
     include-binding-errors: never
+  # Ensure secure cookies work behind TLS-terminating proxy
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: lax
 
 logging:
   level:

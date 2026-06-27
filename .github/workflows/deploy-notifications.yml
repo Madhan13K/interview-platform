@@ -1,0 +1,77 @@
+name: Deployment Notifications
+
+on:
+  workflow_run:
+    workflows: ["Blue-Green Deployment", "Canary Deployment", "CI/CD Pipeline"]
+    types: [completed]
+
+jobs:
+  notify:
+    name: Send Deployment Notification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          COMMITS=$(git log --oneline -5 --no-merges | head -5)
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Notify Slack
+        if: secrets.SLACK_WEBHOOK_URL != ''
+        run: |
+          STATUS="${{ github.event.workflow_run.conclusion }}"
+          EMOJI=$(if [ "$STATUS" = "success" ]; then echo "white_check_mark"; else echo "x"; fi)
+          COLOR=$(if [ "$STATUS" = "success" ]; then echo "#36a64f"; else echo "#dc3545"; fi)
+
+          curl -sf -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \":$EMOJI: Deployment $STATUS — ${{ github.event.workflow_run.name }}\",
+                \"fields\": [
+                  {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"${{ github.event.workflow_run.head_branch }}\", \"short\": true},
+                  {\"title\": \"Triggered by\", \"value\": \"${{ github.event.workflow_run.actor.login }}\", \"short\": true},
+                  {\"title\": \"Duration\", \"value\": \"$(date -d @$(($(date +%s) - $(date -d '${{ github.event.workflow_run.created_at }}' +%s))) -u +%Mm%Ss)\", \"short\": true}
+                ],
+                \"text\": \"Recent commits:\\n\`\`\`${{ steps.changelog.outputs.commits }}\`\`\`\",
+                \"footer\": \"GitHub Actions\",
+                \"ts\": $(date +%s)
+              }]
+            }"
+
+      - name: Notify Teams
+        if: secrets.TEAMS_WEBHOOK_URL != ''
+        run: |
+          STATUS="${{ github.event.workflow_run.conclusion }}"
+          ICON=$(if [ "$STATUS" = "success" ]; then echo "✅"; else echo "❌"; fi)
+
+          curl -sf -X POST ${{ secrets.TEAMS_WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"@type\": \"MessageCard\",
+              \"summary\": \"Deployment $STATUS\",
+              \"themeColor\": \"$(if [ $STATUS = 'success' ]; then echo '36a64f'; else echo 'dc3545'; fi)\",
+              \"title\": \"$ICON Deployment $STATUS — ${{ github.event.workflow_run.name }}\",
+              \"sections\": [{
+                \"facts\": [
+                  {\"name\": \"Repository\", \"value\": \"${{ github.repository }}\"},
+                  {\"name\": \"Branch\", \"value\": \"${{ github.event.workflow_run.head_branch }}\"},
+                  {\"name\": \"Actor\", \"value\": \"${{ github.event.workflow_run.actor.login }}\"}
+                ]
+              }]
+            }"
+
+      - name: Create GitHub Deployment Status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ github.event.workflow_run.conclusion }}';
+            console.log(`Deployment ${status} for workflow: ${{ github.event.workflow_run.name }}`);

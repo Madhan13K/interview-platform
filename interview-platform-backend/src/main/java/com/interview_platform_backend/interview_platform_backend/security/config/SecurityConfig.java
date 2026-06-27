@@ -3,8 +3,10 @@ package com.interview_platform_backend.interview_platform_backend.security.confi
 import com.interview_platform_backend.interview_platform_backend.security.apikey.filter.ApiKeyAuthenticationFilter;
 import com.interview_platform_backend.interview_platform_backend.security.jwt.CustomUserDetailsService;
 import com.interview_platform_backend.interview_platform_backend.security.jwt.JwtAuthenticationFilter;
+import com.interview_platform_backend.interview_platform_backend.security.mtls.MtlsAuthenticationFilter;
 import com.interview_platform_backend.interview_platform_backend.sso.config.DynamicRelyingPartyRegistrationRepository;
 import com.interview_platform_backend.interview_platform_backend.sso.config.SamlAuthenticationSuccessHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -44,8 +46,13 @@ public class SecurityConfig {
     private final CookieAuthorizationRequestRepository cookieAuthorizationRequestRepository;
     private final RateLimitingFilter rateLimitingFilter;
     private final XssSanitizingFilter xssSanitizingFilter;
+    private final RequestBodySizeLimitFilter requestBodySizeLimitFilter;
     private final DynamicRelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
     private final SamlAuthenticationSuccessHandler samlAuthenticationSuccessHandler;
+
+    // Optional: mTLS filter (only present when app.mtls.enabled=true)
+    @Autowired(required = false)
+    private MtlsAuthenticationFilter mtlsAuthenticationFilter;
 
     @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private String allowedOrigins;
@@ -59,6 +66,7 @@ public class SecurityConfig {
                           CookieAuthorizationRequestRepository cookieAuthorizationRequestRepository,
                           RateLimitingFilter rateLimitingFilter,
                           XssSanitizingFilter xssSanitizingFilter,
+                          RequestBodySizeLimitFilter requestBodySizeLimitFilter,
                           DynamicRelyingPartyRegistrationRepository relyingPartyRegistrationRepository,
                           SamlAuthenticationSuccessHandler samlAuthenticationSuccessHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -70,6 +78,7 @@ public class SecurityConfig {
         this.cookieAuthorizationRequestRepository = cookieAuthorizationRequestRepository;
         this.rateLimitingFilter = rateLimitingFilter;
         this.xssSanitizingFilter = xssSanitizingFilter;
+        this.requestBodySizeLimitFilter = requestBodySizeLimitFilter;
         this.relyingPartyRegistrationRepository = relyingPartyRegistrationRepository;
         this.samlAuthenticationSuccessHandler = samlAuthenticationSuccessHandler;
     }
@@ -95,6 +104,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/admin/**").authenticated()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
+                        // mTLS-authenticated endpoints (require valid client certificate)
+                        .requestMatchers("/api/v1/mtls/**").hasRole("MTLS_CLIENT")
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/jobs/**",
@@ -103,6 +114,8 @@ public class SecurityConfig {
                                 "/saml2/**",
                                 "/login/saml2/**",
                                 "/api/v1/sso/tenant/*/login-urls",
+                                "/api/v1/oauth2/token",
+                                "/api/v1/oauth2/introspect",
                                 "/.well-known/jwks.json",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -125,10 +138,17 @@ public class SecurityConfig {
                 .saml2Login(saml2 -> saml2
                         .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
                         .successHandler(samlAuthenticationSuccessHandler))
+                .addFilterBefore(requestBodySizeLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(xssSanitizingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        // Conditionally add mTLS filter (runs before JWT to allow cert-based auth to take priority)
+        if (mtlsAuthenticationFilter != null) {
+            http.addFilterBefore(mtlsAuthenticationFilter, jwtAuthenticationFilter.getClass());
+        }
+
         return http.build();
     }
 

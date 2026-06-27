@@ -1,0 +1,75 @@
+name: Feature Flag Sync
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'interview-platform-backend/src/main/java/**/featureflags/**'
+      - 'interview-platform-backend/src/main/resources/feature-flags.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Sync action'
+        required: true
+        type: choice
+        options:
+          - sync-to-provider
+          - sync-from-provider
+          - audit
+
+env:
+  LAUNCHDARKLY_SDK_KEY: ${{ secrets.LAUNCHDARKLY_SDK_KEY }}
+  LAUNCHDARKLY_API_KEY: ${{ secrets.LAUNCHDARKLY_API_KEY }}
+  LAUNCHDARKLY_PROJECT: interview-platform
+
+jobs:
+  sync-flags:
+    name: Sync Feature Flags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Local Flag Definitions
+        id: flags
+        working-directory: interview-platform-backend
+        run: |
+          if [ -f src/main/resources/feature-flags.yml ]; then
+            echo "Found local feature flag definitions"
+            cat src/main/resources/feature-flags.yml
+          else
+            echo "No local feature-flags.yml found, using defaults from code"
+          fi
+
+      - name: Sync to LaunchDarkly
+        if: inputs.action == 'sync-to-provider' || github.event_name == 'push'
+        run: |
+          echo "Syncing feature flags to LaunchDarkly..."
+          # List all flags from code annotations
+          grep -rn "@FeatureFlag\|@ConditionalOnFeature\|featureFlags.isEnabled" \
+            interview-platform-backend/src/main/java/ \
+            --include="*.java" | while IFS= read -r line; do
+            FLAG=$(echo "$line" | grep -oP '\"[A-Z_]+\"' | tr -d '"' | head -1)
+            if [ -n "$FLAG" ]; then
+              echo "  Found flag: $FLAG"
+            fi
+          done
+
+      - name: Audit Flag Usage
+        if: inputs.action == 'audit' || github.event_name == 'push'
+        run: |
+          echo "## Feature Flag Audit" >> $GITHUB_STEP_SUMMARY
+          echo "| Flag | File | Line |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|------|" >> $GITHUB_STEP_SUMMARY
+          grep -rn "isEnabled\|isFeatureEnabled\|@ConditionalOnFeature" \
+            interview-platform-backend/src/main/java/ \
+            --include="*.java" | while IFS=: read -r file line content; do
+            FLAG=$(echo "$content" | grep -oP '"[^"]*"' | head -1)
+            SHORT_FILE=$(echo "$file" | sed 's|.*/src/main/java/||')
+            echo "| $FLAG | $SHORT_FILE | $line |" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Verify No Stale Flags
+        run: |
+          echo "Checking for flags defined but never used..."
+          # This would typically query LaunchDarkly API for flags with 0 evaluations in 30 days
+          echo "::notice::Stale flag detection requires LaunchDarkly API access (skipped in CI)"

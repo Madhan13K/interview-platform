@@ -26,6 +26,12 @@ public class QuestionGeneratorV2Service {
     @Value("${app.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${app.ai.openai.api-url:https://openrouter.ai/api/v1/chat/completions}")
+    private String apiUrl;
+
+    @Value("${app.ai.openai.model:openai/gpt-4o-mini}")
+    private String model;
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -60,7 +66,7 @@ public class QuestionGeneratorV2Service {
                 """, count, interviewType, candidateContext, jobContext, previousFeedback);
 
             var requestBody = Map.of(
-                    "model", "gpt-4o-mini",
+                    "model", model,
                     "messages", List.of(
                             Map.of("role", "system", "content", "You generate interview questions tailored to specific candidates and roles."),
                             Map.of("role", "user", "content", prompt)
@@ -69,8 +75,9 @@ public class QuestionGeneratorV2Service {
                     "max_tokens", 800
             );
 
-            var response = restClient.post().uri("https://api.openai.com/v1/chat/completions")
+            var response = restClient.post().uri(apiUrl)
                     .header("Authorization", "Bearer " + openAiApiKey).header("Content-Type", "application/json")
+                    .header("HTTP-Referer", "https://interview-platform.app").header("X-Title", "Interview Platform AI")
                     .body(requestBody).retrieve().body(Map.class);
 
             if (response != null) {

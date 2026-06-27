@@ -1,0 +1,91 @@
+name: Container Security Scan
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'interview-platform-backend/Dockerfile'
+      - 'interview-platform-backend/pom.xml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'interview-platform-backend/Dockerfile'
+  workflow_dispatch:
+
+jobs:
+  build-and-scan:
+    name: Build & Scan Container Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR
+        working-directory: interview-platform-backend
+        run: ./mvnw package -DskipTests -B
+
+      - name: Build Docker Image
+        working-directory: interview-platform-backend
+        run: docker build -t interview-platform:scan .
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'interview-platform:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Trivy Table Output
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'interview-platform:scan'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+  sbom-generation:
+    name: Generate SBOM (Software Bill of Materials)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR
+        working-directory: interview-platform-backend
+        run: ./mvnw package -DskipTests -B
+
+      - name: Build Docker Image
+        working-directory: interview-platform-backend
+        run: docker build -t interview-platform:sbom .
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: 'interview-platform:sbom'
+          format: 'cyclonedx-json'
+          output-file: 'sbom.json'
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 90

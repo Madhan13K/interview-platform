@@ -26,6 +26,12 @@ public class AIInterviewCoachService {
     @Value("${app.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${app.ai.openai.api-url:https://openrouter.ai/api/v1/chat/completions}")
+    private String apiUrl;
+
+    @Value("${app.ai.openai.model:openai/gpt-4o-mini}")
+    private String model;
+
     private final RestClient restClient = RestClient.create();
 
     /**
@@ -100,7 +106,7 @@ public class AIInterviewCoachService {
 
     private List<String> generateAIFollowUps(String transcript, String jobTitle, List<String> competencies) {
         var requestBody = Map.of(
-                "model", "gpt-4o-mini",
+                "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content", "You are an interview coach. Based on the transcript, suggest 2-3 follow-up questions the interviewer should ask. Be specific and relevant. Return as JSON: {\"questions\": [...]}"),
                         Map.of("role", "user", "content", "Job: " + jobTitle + "\nCompetencies: " + String.join(", ", competencies) + "\n\nRecent transcript:\n" + transcript.substring(Math.max(0, transcript.length() - 1000)))
@@ -110,9 +116,11 @@ public class AIInterviewCoachService {
         );
 
         var response = restClient.post()
-                .uri("https://api.openai.com/v1/chat/completions")
+                .uri(apiUrl)
                 .header("Authorization", "Bearer " + openAiApiKey)
                 .header("Content-Type", "application/json")
+                .header("HTTP-Referer", "https://interview-platform.app")
+                .header("X-Title", "Interview Platform AI")
                 .body(requestBody).retrieve().body(Map.class);
 
         if (response != null && response.containsKey("choices")) {

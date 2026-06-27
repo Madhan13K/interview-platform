@@ -1,471 +1,446 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  reportBuilderService,
+  ReportTemplate,
+  ReportWidget,
+  GeneratedReport,
+} from "@/services/report-builder.service";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-type DataSource = "Interviews" | "Candidates" | "Jobs" | "Feedback";
-type ChartType = "Table" | "Bar" | "Line" | "Pie";
-type FilterOperator = "equals" | "contains" | "greater_than" | "less_than";
+type WidgetType = ReportWidget["type"];
 
-interface ReportFilter {
-  field: string;
-  operator: FilterOperator;
-  value: string;
-}
-
-interface SavedReport {
-  id: string;
-  name: string;
-  dataSource: DataSource;
-  columns: string[];
-  filters: ReportFilter[];
-  groupBy: string;
-  sortBy: string;
-  chartType: ChartType;
-  createdAt: string;
-  lastRun: string;
-}
-
-const columnOptions: Record<DataSource, string[]> = {
-  Interviews: ["Candidate", "Position", "Date", "Duration", "Score", "Status", "Interviewer"],
-  Candidates: ["Name", "Email", "Phone", "Skills", "Experience", "Location", "Applied Date"],
-  Jobs: ["Title", "Department", "Location", "Status", "Applications", "Posted Date", "Salary Range"],
-  Feedback: ["Interviewer", "Candidate", "Rating", "Recommendation", "Date", "Comments"],
-};
-
-const mockTableData: Record<DataSource, Record<string, string>[]> = {
-  Interviews: [
-    { Candidate: "Alice Johnson", Position: "Frontend Dev", Date: "2024-01-15", Duration: "45 min", Score: "8/10", Status: "Completed", Interviewer: "Bob Smith" },
-    { Candidate: "Charlie Brown", Position: "Backend Dev", Date: "2024-01-16", Duration: "60 min", Score: "7/10", Status: "Completed", Interviewer: "Diana Lee" },
-    { Candidate: "Eve Davis", Position: "Full Stack", Date: "2024-01-17", Duration: "50 min", Score: "9/10", Status: "Completed", Interviewer: "Frank Wilson" },
-  ],
-  Candidates: [
-    { Name: "Alice Johnson", Email: "alice@email.com", Phone: "555-0101", Skills: "React, TypeScript", Experience: "5 years", Location: "NYC", "Applied Date": "2024-01-10" },
-    { Name: "Charlie Brown", Email: "charlie@email.com", Phone: "555-0102", Skills: "Node.js, Python", Experience: "3 years", Location: "SF", "Applied Date": "2024-01-11" },
-  ],
-  Jobs: [
-    { Title: "Frontend Developer", Department: "Engineering", Location: "Remote", Status: "Open", Applications: "24", "Posted Date": "2024-01-01", "Salary Range": "$120k-$150k" },
-    { Title: "Product Manager", Department: "Product", Location: "NYC", Status: "Open", Applications: "18", "Posted Date": "2024-01-05", "Salary Range": "$130k-$160k" },
-  ],
-  Feedback: [
-    { Interviewer: "Bob Smith", Candidate: "Alice Johnson", Rating: "4/5", Recommendation: "Hire", Date: "2024-01-15", Comments: "Strong technical skills" },
-    { Interviewer: "Diana Lee", Candidate: "Charlie Brown", Rating: "3/5", Recommendation: "Maybe", Date: "2024-01-16", Comments: "Good culture fit" },
-  ],
-};
-
-const initialSavedReports: SavedReport[] = [
-  {
-    id: "1",
-    name: "Weekly Interview Summary",
-    dataSource: "Interviews",
-    columns: ["Candidate", "Position", "Date", "Score", "Status"],
-    filters: [],
-    groupBy: "Status",
-    sortBy: "Date",
-    chartType: "Table",
-    createdAt: "2024-01-10",
-    lastRun: "2024-01-17",
-  },
-  {
-    id: "2",
-    name: "Candidate Pipeline",
-    dataSource: "Candidates",
-    columns: ["Name", "Skills", "Experience", "Location"],
-    filters: [],
-    groupBy: "Location",
-    sortBy: "Name",
-    chartType: "Bar",
-    createdAt: "2024-01-08",
-    lastRun: "2024-01-16",
-  },
+const WIDGET_PALETTE: { type: WidgetType; label: string; icon: string; description: string }[] = [
+  { type: "BAR_CHART", label: "Bar Chart", icon: "📊", description: "Compare values across categories" },
+  { type: "LINE_CHART", label: "Line Chart", icon: "📈", description: "Show trends over time" },
+  { type: "PIE_CHART", label: "Pie Chart", icon: "🥧", description: "Show proportions of a whole" },
+  { type: "TABLE", label: "Table", icon: "📋", description: "Display detailed tabular data" },
+  { type: "METRIC_CARD", label: "Metric Card", icon: "🔢", description: "Highlight a single KPI" },
+  { type: "FUNNEL", label: "Funnel", icon: "🔻", description: "Visualize conversion stages" },
+  { type: "HEATMAP", label: "Heatmap", icon: "🗺️", description: "Show density patterns" },
 ];
 
+type ViewMode = "grid" | "list";
+type Tab = "templates" | "generated" | "create";
+
 export default function ReportBuilderPage() {
-  const [activeTab, setActiveTab] = useState<"create" | "saved">("create");
-  const [dataSource, setDataSource] = useState<DataSource>("Interviews");
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
-  const [filters, setFilters] = useState<ReportFilter[]>([]);
-  const [groupBy, setGroupBy] = useState("");
-  const [sortBy, setSortBy] = useState("");
-  const [chartType, setChartType] = useState<ChartType>("Table");
-  const [reportName, setReportName] = useState("");
-  const [savedReports, setSavedReports] = useState<SavedReport[]>(initialSavedReports);
-  const [showPreview, setShowPreview] = useState(false);
+  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>("templates");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const toggleColumn = (col: string) => {
-    setSelectedColumns((prev) =>
-      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
-    );
+  // Create form state
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formLayout, setFormLayout] = useState<"grid" | "list">("grid");
+  const [formWidgets, setFormWidgets] = useState<Partial<ReportWidget>[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [templatesRes] = await Promise.all([
+        reportBuilderService.list(),
+      ]);
+      setTemplates(templatesRes.data || []);
+    } catch {
+      setTemplates([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addFilter = () => {
-    setFilters([...filters, { field: columnOptions[dataSource][0], operator: "equals", value: "" }]);
-  };
-
-  const updateFilter = (index: number, updates: Partial<ReportFilter>) => {
-    setFilters(filters.map((f, i) => (i === index ? { ...f, ...updates } : f)));
-  };
-
-  const removeFilter = (index: number) => {
-    setFilters(filters.filter((_, i) => i !== index));
-  };
-
-  const saveReport = () => {
-    if (!reportName.trim()) return;
-    const newReport: SavedReport = {
-      id: Date.now().toString(),
-      name: reportName,
-      dataSource,
-      columns: selectedColumns,
-      filters,
-      groupBy,
-      sortBy,
-      chartType,
-      createdAt: new Date().toISOString().split("T")[0],
-      lastRun: "-",
+  const handleAddWidget = (type: WidgetType) => {
+    const widget: Partial<ReportWidget> = {
+      id: `widget_${Date.now()}`,
+      type,
+      title: `${WIDGET_PALETTE.find((w) => w.type === type)?.label || type} Widget`,
+      dataSource: "",
+      position: { x: 0, y: formWidgets.length * 4, w: 6, h: 4 },
+      config: {},
     };
-    setSavedReports([...savedReports, newReport]);
-    setReportName("");
+    setFormWidgets((prev) => [...prev, widget]);
   };
 
-  const deleteReport = (id: string) => {
-    setSavedReports(savedReports.filter((r) => r.id !== id));
+  const handleRemoveWidget = (id: string) => {
+    setFormWidgets((prev) => prev.filter((w) => w.id !== id));
   };
 
-  const runReport = (id: string) => {
-    setSavedReports(
-      savedReports.map((r) =>
-        r.id === id ? { ...r, lastRun: new Date().toISOString().split("T")[0] } : r
-      )
+  const handleCreateTemplate = async () => {
+    if (!formName.trim() || formWidgets.length === 0) return;
+    try {
+      setCreating(true);
+      const res = await reportBuilderService.create({
+        name: formName.trim(),
+        description: formDescription.trim(),
+        layout: formLayout,
+        widgets: formWidgets as ReportWidget[],
+        filters: [],
+      });
+      setTemplates((prev) => [...prev, res.data]);
+      setFormName("");
+      setFormDescription("");
+      setFormWidgets([]);
+      setTab("templates");
+    } catch (err) {
+      console.error("Failed to create template:", err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleGenerate = async (templateId: string) => {
+    try {
+      setGenerating(templateId);
+      const res = await reportBuilderService.generate(templateId);
+      setGeneratedReports((prev) => [res.data, ...prev]);
+      setTab("generated");
+    } catch (err) {
+      console.error("Failed to generate report:", err);
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await reportBuilderService.delete(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+    } catch (err) {
+      console.error("Failed to delete template:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center gap-2 text-slate-500">
+          <div className="h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <span>Loading report builder...</span>
+        </div>
+      </div>
     );
-  };
-
-  const previewData = mockTableData[dataSource];
-  const displayColumns = selectedColumns.length > 0 ? selectedColumns : columnOptions[dataSource];
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Report Builder</h1>
-          <p className="text-slate-500 mt-1">Create custom reports and visualizations</p>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Report Builder</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Design custom reports with drag-and-drop widgets
+          </p>
         </div>
+        <Button
+          onClick={() => setTab("create")}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          + New Template
+        </Button>
+      </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-slate-200 rounded-lg p-1 mb-6 w-fit">
+      {/* Tabs */}
+      <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+        {(["templates", "generated", "create"] as Tab[]).map((t) => (
           <button
-            onClick={() => setActiveTab("create")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "create"
-                ? "bg-white text-indigo-600 shadow-sm"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${
+              tab === t
+                ? "bg-white text-slate-900 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Create Report
+            {t === "create" ? "Create New" : t}
           </button>
-          <button
-            onClick={() => setActiveTab("saved")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === "saved"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Saved Reports
-          </button>
-        </div>
+        ))}
+      </div>
 
-        {activeTab === "create" ? (
-          <div className="space-y-6">
-            {/* Step 1: Data Source */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">1. Select Data Source</h2>
-              <div className="grid grid-cols-4 gap-3">
-                {(["Interviews", "Candidates", "Jobs", "Feedback"] as DataSource[]).map((source) => (
-                  <button
-                    key={source}
-                    onClick={() => {
-                      setDataSource(source);
-                      setSelectedColumns([]);
-                      setFilters([]);
-                      setGroupBy("");
-                      setSortBy("");
-                    }}
-                    className={`p-4 rounded-lg border-2 text-center font-medium transition-colors ${
-                      dataSource === source
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                        : "border-slate-200 text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    {source}
-                  </button>
-                ))}
-              </div>
-            </div>
+      {/* Templates Tab */}
+      {tab === "templates" && (
+        <div>
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded ${viewMode === "grid" ? "bg-indigo-100 text-indigo-700" : "text-slate-400 hover:text-slate-600"}`}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/></svg>
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded ${viewMode === "list" ? "bg-indigo-100 text-indigo-700" : "text-slate-400 hover:text-slate-600"}`}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>
+            </button>
+            <span className="text-sm text-slate-400 ml-2">
+              {templates.length} template{templates.length !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-            {/* Step 2: Choose Columns */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">2. Choose Columns</h2>
-              <div className="grid grid-cols-4 gap-3">
-                {columnOptions[dataSource].map((col) => (
-                  <label
-                    key={col}
-                    className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedColumns.includes(col)}
-                      onChange={() => toggleColumn(col)}
-                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-slate-700">{col}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 3: Filters */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">3. Add Filters</h2>
-                <button
-                  onClick={addFilter}
-                  className="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 font-medium"
-                >
-                  + Add Filter
-                </button>
-              </div>
-              {filters.length === 0 ? (
-                <p className="text-slate-400 text-sm">No filters applied. Click &quot;Add Filter&quot; to narrow your results.</p>
-              ) : (
-                <div className="space-y-3">
-                  {filters.map((filter, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <select
-                        value={filter.field}
-                        onChange={(e) => updateFilter(idx, { field: e.target.value })}
-                        className="px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
-                      >
-                        {columnOptions[dataSource].map((col) => (
-                          <option key={col} value={col}>{col}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={filter.operator}
-                        onChange={(e) => updateFilter(idx, { operator: e.target.value as FilterOperator })}
-                        className="px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
-                      >
-                        <option value="equals">Equals</option>
-                        <option value="contains">Contains</option>
-                        <option value="greater_than">Greater Than</option>
-                        <option value="less_than">Less Than</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={filter.value}
-                        onChange={(e) => updateFilter(idx, { value: e.target.value })}
-                        placeholder="Value..."
-                        className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm"
-                      />
-                      <button
-                        onClick={() => removeFilter(idx)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-md"
-                      >
-                        &times;
-                      </button>
+          {viewMode === "grid" ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {templates.map((template) => (
+                <Card key={template.id} className="hover:border-indigo-200 transition-colors">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base">{template.name}</CardTitle>
+                      <Badge variant="secondary">{template.layout}</Badge>
                     </div>
-                  ))}
-                </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-slate-500 mb-3">{template.description}</p>
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {template.widgets.map((w) => (
+                        <span
+                          key={w.id}
+                          className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                        >
+                          {WIDGET_PALETTE.find((wp) => wp.type === w.type)?.icon} {w.title}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleGenerate(template.id)}
+                        disabled={generating === template.id}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        {generating === template.id ? "Generating..." : "Generate"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(template.id)}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {templates.length === 0 && (
+                <p className="col-span-full text-center text-slate-500 py-12">
+                  No templates yet. Create your first report template.
+                </p>
               )}
             </div>
-
-            {/* Step 4: Group By & Sort By */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">4. Group & Sort</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Group By</label>
-                  <select
-                    value={groupBy}
-                    onChange={(e) => setGroupBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
-                  >
-                    <option value="">None</option>
-                    {columnOptions[dataSource].map((col) => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Sort By</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
-                  >
-                    <option value="">None</option>
-                    {columnOptions[dataSource].map((col) => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 5: Chart Type */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">5. Visualization</h2>
-              <div className="flex gap-3">
-                {(["Table", "Bar", "Line", "Pie"] as ChartType[]).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setChartType(type)}
-                    className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
-                      chartType === type
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                        : "border-slate-200 text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Preview & Save */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Preview & Save</h2>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="px-4 py-2 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 font-medium"
-                  >
-                    {showPreview ? "Hide Preview" : "Show Preview"}
-                  </button>
-                  <button className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 font-medium">
-                    CSV
-                  </button>
-                  <button className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 font-medium">
-                    JSON
-                  </button>
-                  <button className="px-3 py-2 text-sm bg-red-50 text-red-700 rounded-md hover:bg-red-100 font-medium">
-                    PDF
-                  </button>
-                </div>
-              </div>
-
-              {showPreview && (
-                <div className="mb-6 overflow-x-auto">
-                  {chartType === "Table" ? (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          {displayColumns.map((col) => (
-                            <th key={col} className="text-left py-3 px-4 font-medium text-slate-600">
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewData.map((row, idx) => (
-                          <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                            {displayColumns.map((col) => (
-                              <td key={col} className="py-3 px-4 text-slate-700">
-                                {row[col] || "-"}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="h-48 flex items-center justify-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                      <div className="text-center">
-                        <div className="text-2xl mb-2">
-                          {chartType === "Bar" && "|||"}
-                          {chartType === "Line" && "~~~"}
-                          {chartType === "Pie" && "O"}
-                        </div>
-                        <p className="text-slate-500 text-sm">{chartType} chart preview</p>
-                        <p className="text-slate-400 text-xs mt-1">Data source: {dataSource} ({previewData.length} rows)</p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <Card key={template.id} className="hover:border-indigo-200 transition-colors">
+                  <CardContent className="flex items-center justify-between py-4">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <h3 className="font-medium text-slate-900">{template.name}</h3>
+                        <p className="text-sm text-slate-500">
+                          {template.widgets.length} widgets | {template.layout} layout
+                        </p>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={reportName}
-                  onChange={(e) => setReportName(e.target.value)}
-                  placeholder="Report name..."
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-sm"
-                />
-                <button
-                  onClick={saveReport}
-                  disabled={!reportName.trim()}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Save Report
-                </button>
-              </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleGenerate(template.id)}
+                        disabled={generating === template.id}
+                      >
+                        {generating === template.id ? "..." : "Generate"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(template.id)}
+                        className="text-red-600"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Generated Reports Tab */}
+      {tab === "generated" && (
+        <div className="space-y-3">
+          {generatedReports.map((report) => (
+            <Card key={report.id}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div>
+                  <h3 className="font-medium">{report.name}</h3>
+                  <p className="text-sm text-slate-500">
+                    {report.format} | {report.rowCount} rows |{" "}
+                    {(report.fileSizeBytes / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <Badge
+                  className={
+                    report.status === "COMPLETED"
+                      ? "bg-green-100 text-green-700"
+                      : report.status === "GENERATING"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-red-100 text-red-700"
+                  }
+                >
+                  {report.status}
+                </Badge>
+              </CardContent>
+            </Card>
+          ))}
+          {generatedReports.length === 0 && (
+            <p className="text-center text-slate-500 py-12">
+              No generated reports yet. Generate one from a template.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Create Template Tab */}
+      {tab === "create" && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Widget Palette */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Widget Palette</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {WIDGET_PALETTE.map((widget) => (
+                  <button
+                    key={widget.type}
+                    onClick={() => handleAddWidget(widget.type)}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-left"
+                  >
+                    <span className="text-2xl">{widget.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">{widget.label}</p>
+                      <p className="text-xs text-slate-500">{widget.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
           </div>
-        ) : (
-          /* Saved Reports Tab */
-          <div className="bg-white rounded-xl border border-slate-200">
-            {savedReports.length === 0 ? (
-              <div className="p-12 text-center">
-                <p className="text-slate-400 text-lg">No saved reports yet</p>
-                <p className="text-slate-400 text-sm mt-1">Create a report and save it to see it here.</p>
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="text-left py-3 px-6 font-medium text-slate-600">Name</th>
-                    <th className="text-left py-3 px-6 font-medium text-slate-600">Data Source</th>
-                    <th className="text-left py-3 px-6 font-medium text-slate-600">Created</th>
-                    <th className="text-left py-3 px-6 font-medium text-slate-600">Last Run</th>
-                    <th className="text-right py-3 px-6 font-medium text-slate-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {savedReports.map((report) => (
-                    <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-4 px-6 font-medium text-slate-900">{report.name}</td>
-                      <td className="py-4 px-6">
-                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">
-                          {report.dataSource}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-slate-500">{report.createdAt}</td>
-                      <td className="py-4 px-6 text-slate-500">{report.lastRun}</td>
-                      <td className="py-4 px-6 text-right">
+
+          {/* Form */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Template Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Template Name</Label>
+                  <Input
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="e.g., Monthly Hiring Report"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Describe what this report shows"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Layout</Label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setFormLayout("grid")}
+                      className={`px-4 py-2 rounded border text-sm ${
+                        formLayout === "grid"
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      Grid
+                    </button>
+                    <button
+                      onClick={() => setFormLayout("list")}
+                      className={`px-4 py-2 rounded border text-sm ${
+                        formLayout === "list"
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      List
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Added Widgets */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Widgets ({formWidgets.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {formWidgets.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-6">
+                    Click widgets from the palette to add them
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {formWidgets.map((widget) => (
+                      <div
+                        key={widget.id}
+                        className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">
+                            {WIDGET_PALETTE.find((w) => w.type === widget.type)?.icon}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium">{widget.title}</p>
+                            <p className="text-xs text-slate-500">{widget.type}</p>
+                          </div>
+                        </div>
                         <button
-                          onClick={() => runReport(report.id)}
-                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-md text-xs font-medium hover:bg-indigo-100 mr-2"
+                          onClick={() => handleRemoveWidget(widget.id!)}
+                          className="text-red-400 hover:text-red-600"
                         >
-                          Run
+                          ×
                         </button>
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          className="px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-xs font-medium hover:bg-red-100"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Button
+              onClick={handleCreateTemplate}
+              disabled={creating || !formName.trim() || formWidgets.length === 0}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {creating ? "Creating..." : "Create Template"}
+            </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

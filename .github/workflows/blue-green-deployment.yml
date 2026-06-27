@@ -1,0 +1,115 @@
+name: Blue-Green Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options: [staging, production]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/interview-platform
+  NAMESPACE: interview-platform
+
+jobs:
+  deploy-green:
+    name: Deploy Green Environment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      green_healthy: ${{ steps.health.outputs.healthy }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Determine Active Color
+        id: active
+        run: |
+          ACTIVE=$(kubectl get service interview-platform -n $NAMESPACE -o jsonpath='{.spec.selector.color}' 2>/dev/null || echo "blue")
+          echo "active=$ACTIVE" >> $GITHUB_OUTPUT
+          if [ "$ACTIVE" = "blue" ]; then echo "inactive=green" >> $GITHUB_OUTPUT; else echo "inactive=blue" >> $GITHUB_OUTPUT; fi
+          echo "Active: $ACTIVE, Deploying to: $(if [ $ACTIVE = 'blue' ]; then echo green; else echo blue; fi)"
+
+      - name: Deploy to Inactive (${{ steps.active.outputs.inactive }})
+        run: |
+          COLOR=${{ steps.active.outputs.inactive }}
+          kubectl set image deployment/interview-platform-$COLOR \
+            app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} \
+            -n $NAMESPACE
+          kubectl rollout status deployment/interview-platform-$COLOR -n $NAMESPACE --timeout=180s
+
+      - name: Health Check (Green)
+        id: health
+        run: |
+          COLOR=${{ steps.active.outputs.inactive }}
+          POD=$(kubectl get pods -n $NAMESPACE -l app=interview-platform,color=$COLOR -o jsonpath='{.items[0].metadata.name}')
+          for i in $(seq 1 10); do
+            STATUS=$(kubectl exec -n $NAMESPACE $POD -- curl -sf http://localhost:8080/actuator/health 2>/dev/null | grep -o '"status":"UP"' || echo "")
+            if [ -n "$STATUS" ]; then
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              echo "Green environment healthy!"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          echo "::error::Green environment health check failed!"
+          exit 1
+
+  switch-traffic:
+    name: Switch Traffic (Blue → Green)
+    runs-on: ubuntu-latest
+    needs: deploy-green
+    if: needs.deploy-green.outputs.green_healthy == 'true'
+    steps:
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Switch Service to Green
+        run: |
+          INACTIVE=$(kubectl get service interview-platform -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.color}')
+          NEW_COLOR=$(if [ "$INACTIVE" = "blue" ]; then echo "green"; else echo "blue"; fi)
+          kubectl patch service interview-platform -n ${{ env.NAMESPACE }} \
+            -p "{\"spec\":{\"selector\":{\"color\":\"$NEW_COLOR\"}}}"
+          echo "Traffic switched to $NEW_COLOR!"
+
+      - name: Verify Switch
+        run: |
+          sleep 5
+          RESPONSE=$(curl -sf http://interview-platform.${{ env.NAMESPACE }}.svc.cluster.local:8080/actuator/health || echo "FAIL")
+          echo "Post-switch health: $RESPONSE"
+
+  rollback:
+    name: Instant Rollback
+    runs-on: ubuntu-latest
+    needs: [deploy-green, switch-traffic]
+    if: failure()
+    steps:
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Rollback to Previous Color
+        run: |
+          ACTIVE=$(kubectl get service interview-platform -n ${{ env.NAMESPACE }} -o jsonpath='{.spec.selector.color}')
+          ROLLBACK=$(if [ "$ACTIVE" = "blue" ]; then echo "green"; else echo "blue"; fi)
+          kubectl patch service interview-platform -n ${{ env.NAMESPACE }} \
+            -p "{\"spec\":{\"selector\":{\"color\":\"$ROLLBACK\"}}}"
+          echo "::warning::Rolled back to $ROLLBACK"

@@ -209,8 +209,44 @@ export default function PipelinesPage() {
     setFormStages([{ name: "", order: 1, type: "SCREENING" }]);
   };
 
+  const [draggedCandidateId, setDraggedCandidateId] = useState<string | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
+
   const getCandidatesForStage = (stageId: string) =>
     candidates.filter((c) => c.currentStageId === stageId);
+
+  const handleDragStart = (candidateId: string) => {
+    setDraggedCandidateId(candidateId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCandidateId(null);
+    setDragOverStageId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    setDragOverStageId(stageId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStageId(null);
+  };
+
+  const handleDrop = async (stageId: string) => {
+    if (!draggedCandidateId) return;
+    setDragOverStageId(null);
+    setDraggedCandidateId(null);
+    // In production, this would call an API to move the candidate to the new stage
+    try {
+      await pipelineService.advanceCandidate(draggedCandidateId);
+      showSuccess("Candidate moved");
+      fetchCandidates(selectedPipelineId);
+    } catch (error) {
+      console.error("Failed to move candidate:", error);
+      showError("Move failed", "Could not move candidate to stage");
+    }
+  };
 
   // Loading skeleton
   if (loading) {
@@ -312,9 +348,23 @@ export default function PipelinesPage() {
                           </p>
                         </div>
 
-                        {/* Candidate Cards */}
-                        <div className="p-2 space-y-2 max-h-[500px] overflow-y-auto">
-                          {stageCandidates.length === 0 ? (
+                        {/* Candidate Cards - DnD Drop Zone */}
+                        <div
+                          className={`p-2 space-y-2 max-h-[500px] overflow-y-auto transition-colors rounded-b-lg ${
+                            dragOverStageId === stage.id
+                              ? "bg-indigo-100 border-2 border-dashed border-indigo-400"
+                              : ""
+                          }`}
+                          onDragOver={(e) => handleDragOver(e, stage.id)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={() => handleDrop(stage.id)}
+                        >
+                          {dragOverStageId === stage.id && (
+                            <div className="text-center py-2">
+                              <p className="text-xs text-indigo-600 font-medium">Drop here to move</p>
+                            </div>
+                          )}
+                          {stageCandidates.length === 0 && !dragOverStageId ? (
                             <p className="text-xs text-slate-400 text-center py-4">
                               No candidates
                             </p>
@@ -322,7 +372,12 @@ export default function PipelinesPage() {
                             stageCandidates.map((candidate) => (
                               <Card
                                 key={candidate.id}
-                                className="p-3 bg-white border-slate-200 hover:border-indigo-300 transition-colors shadow-sm"
+                                draggable
+                                onDragStart={() => handleDragStart(candidate.id)}
+                                onDragEnd={handleDragEnd}
+                                className={`p-3 bg-white border-slate-200 hover:border-indigo-300 transition-colors shadow-sm cursor-grab active:cursor-grabbing ${
+                                  draggedCandidateId === candidate.id ? "opacity-50 ring-2 ring-indigo-400" : ""
+                                }`}
                               >
                                 {/* Candidate Name */}
                                 <p className="font-medium text-slate-900 text-sm">

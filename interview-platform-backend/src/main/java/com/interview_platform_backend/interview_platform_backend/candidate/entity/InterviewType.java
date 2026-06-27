@@ -5,5 +5,10 @@ public enum InterviewType {
     TECHNICAL,
     HR,
     MANAGERIAL,
-    FINAL
+    FINAL,
+    SYSTEM_DESIGN,
+    BEHAVIORAL,
+    CODING,
+    THEORETICAL,
+    MCQ
 }

@@ -1,0 +1,49 @@
+# mTLS between all services (STRICT mode)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: default-mtls
+  namespace: interview-platform
+spec:
+  host: "*.interview-platform.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DEFAULT
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+# Backend service specific
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: backend-destination
+  namespace: interview-platform
+spec:
+  host: backend-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+      retryOn: gateway-error,connect-failure,refused-stream

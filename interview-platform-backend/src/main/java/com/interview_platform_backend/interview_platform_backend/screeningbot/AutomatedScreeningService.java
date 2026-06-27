@@ -21,6 +21,12 @@ public class AutomatedScreeningService {
     @Value("${app.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${app.ai.openai.api-url:https://openrouter.ai/api/v1/chat/completions}")
+    private String apiUrl;
+
+    @Value("${app.ai.openai.model:openai/gpt-4o-mini}")
+    private String model;
+
     private final RestClient restClient = RestClient.create();
 
     /**
@@ -64,7 +70,7 @@ public class AutomatedScreeningService {
             }
 
             var requestBody = Map.of(
-                    "model", "gpt-4o-mini",
+                    "model", model,
                     "messages", List.of(
                             Map.of("role", "system", "content", "Evaluate this candidate's screening responses. Score 1-10 and recommend PASS/FAIL/REVIEW. Be objective. Return JSON: {\"score\": N, \"recommendation\": \"PASS|FAIL|REVIEW\", \"strengths\": [...], \"concerns\": [...], \"summary\": \"...\"}"),
                             Map.of("role", "user", "content", context.toString())
@@ -74,9 +80,11 @@ public class AutomatedScreeningService {
             );
 
             var response = restClient.post()
-                    .uri("https://api.openai.com/v1/chat/completions")
+                    .uri(apiUrl)
                     .header("Authorization", "Bearer " + openAiApiKey)
                     .header("Content-Type", "application/json")
+                    .header("HTTP-Referer", "https://interview-platform.app")
+                    .header("X-Title", "Interview Platform AI")
                     .body(requestBody).retrieve().body(Map.class);
 
             if (response != null && response.containsKey("choices")) {
@@ -101,7 +109,7 @@ public class AutomatedScreeningService {
 
     private List<ScreeningQuestion> generateWithAI(String jobTitle, String requirements, int count) throws Exception {
         var requestBody = Map.of(
-                "model", "gpt-4o-mini",
+                "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content", "Generate " + count + " screening questions for a job. Return JSON: {\"questions\": [{\"id\": \"q1\", \"text\": \"...\", \"type\": \"TEXT|NUMBER|YES_NO|DATE\", \"required\": true}]}"),
                         Map.of("role", "user", "content", "Job: " + jobTitle + "\nRequirements: " + requirements)
@@ -110,8 +118,9 @@ public class AutomatedScreeningService {
                 "max_tokens", 500
         );
 
-        var response = restClient.post().uri("https://api.openai.com/v1/chat/completions")
+        var response = restClient.post().uri(apiUrl)
                 .header("Authorization", "Bearer " + openAiApiKey).header("Content-Type", "application/json")
+                .header("HTTP-Referer", "https://interview-platform.app").header("X-Title", "Interview Platform AI")
                 .body(requestBody).retrieve().body(Map.class);
 
         var choices = (List<Map<String, Object>>) response.get("choices");

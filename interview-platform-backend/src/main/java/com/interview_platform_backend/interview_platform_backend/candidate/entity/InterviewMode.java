@@ -3,5 +3,8 @@ package com.interview_platform_backend.interview_platform_backend.candidate.enti
 public enum InterviewMode {
     ONLINE,
     OFFLINE,
-    PHONE
+    PHONE,
+    VIDEO,
+    IN_PERSON,
+    HYBRID
 }

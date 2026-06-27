@@ -207,6 +207,17 @@
 			<groupId>io.opentelemetry</groupId>
 			<artifactId>opentelemetry-api</artifactId>
 		</dependency>
+
+		<!-- Elasticsearch (CQRS Read Model / Full-Text Search) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.google.api-client</groupId>
 			<artifactId>
@@ -397,6 +408,13 @@
 			<artifactId>vault</artifactId>
 			<version>1.20.1</version>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- Netty DNS resolver for macOS (fixes incorrect DNS resolutions warning) -->
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-resolver-dns-native-macos</artifactId>
+			<classifier>osx-aarch_64</classifier>
 		</dependency>
 	</dependencies>
 

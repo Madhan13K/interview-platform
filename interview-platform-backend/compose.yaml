@@ -1,6 +1,8 @@
 services:
   # --- Application (with OpenTelemetry Java Agent) ---
+  # Only starts with: docker compose --profile app up -d
   app:
+    profiles: [app]
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,12 +17,25 @@ services:
       DB_USERNAME: admin
       DB_PASSWORD: postgres
       # Kafka
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_ENABLED: 'true'
       KAFKA_LISTENER_AUTOSTART: 'true'
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Keycloak SSO
+      KEYCLOAK_SSO_ENABLED: 'true'
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: interview-platform
+      KEYCLOAK_CLIENT_ID: interview-platform
+      KEYCLOAK_CLIENT_SECRET: interview-platform-secret
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/interview-platform
+      KEYCLOAK_AUTH_URL: http://keycloak:8080/realms/interview-platform/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/interview-platform/protocol/openid-connect/token
+      KEYCLOAK_USERINFO_URL: http://keycloak:8080/realms/interview-platform/protocol/openid-connect/userinfo
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/interview-platform/protocol/openid-connect/certs
+      # Encryption
+      ENCRYPTION_SECRET_KEY: qu8YUPUdobUFb5pDDFhNDv+Y4DXi0y8YLF8o7E2Ig9A=
       # AWS S3 (LocalStack)
       AWS_S3_ENDPOINT: http://localstack:4566
       # OpenTelemetry Java Agent Configuration
@@ -34,6 +49,17 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: service.namespace=interview-platform,deployment.environment=dev
       OTEL_INSTRUMENTATION_COMMON_DB_STATEMENT_SANITIZER_ENABLED: 'true'
       OTEL_INSTRUMENTATION_KAFKA_EXPERIMENTAL_SPAN_ATTRIBUTES: 'true'
+      # Elasticsearch (CQRS)
+      SEARCH_ENABLED: 'true'
+      ELASTICSEARCH_URI: http://elasticsearch:9200
+      # Mail (Mailpit)
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: 'noreply@interview-platform.com'
+      MAIL_PASSWORD: ''
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
+      NOTIFICATIONS_ENABLED: 'true'
       # JVM options (optional tuning)
       JAVA_TOOL_OPTIONS: >-
         -XX:+UseG1GC
@@ -47,14 +73,20 @@ services:
         condition: service_healthy
       localstack:
         condition: service_healthy
-      otel-collector:
-        condition: service_started
+      keycloak:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 40s
+
+  # ===========================================================================
+  # CORE INFRASTRUCTURE (always started)
+  # ===========================================================================
 
   postgres:
     image: 'postgres:16-alpine'
@@ -66,6 +98,7 @@ services:
       - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d interview_platform"]
       interval: 10s
@@ -80,6 +113,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - '2181:2181'
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     healthcheck:
       test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
       interval: 10s
@@ -97,11 +133,14 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 15s
@@ -161,9 +200,93 @@ services:
       retries: 5
       start_period: 5s
 
+  # --- Mailpit (Local SMTP server + Web UI) ---
+  mailpit:
+    image: 'axllent/mailpit:v1.18'
+    ports:
+      - '8025:8025'   # Web UI
+      - '1025:1025'   # SMTP
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # --- Keycloak (Identity Provider / SSO) ---
+  keycloak:
+    image: 'quay.io/keycloak/keycloak:24.0'
+    command: start-dev --import-realm
+    ports:
+      - '9090:8080'
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: postgres
+      KC_HEALTH_ENABLED: 'true'
+      KC_HOSTNAME_STRICT: 'false'
+      KC_HTTP_ENABLED: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+  # --- Elasticsearch (CQRS Read Model / Full-Text Search) ---
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:8.13.4'
+    ports:
+      - '9200:9200'
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=interview-platform
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # OBSERVABILITY (profile: observability)
+  # Includes: OTel Collector, Jaeger, Loki
+  # Start with: docker compose --profile observability up -d
+  # ===========================================================================
+
+  # --- Loki (Log aggregation) ---
+  loki:
+    image: 'grafana/loki:2.9.7'
+    profiles: [observability]
+    ports:
+      - '3100:3100'
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # --- OpenTelemetry Collector ---
   otel-collector:
     image: 'otel/opentelemetry-collector-contrib:0.102.0'
+    profiles: [observability]
     ports:
       - '4317:4317'   # OTLP gRPC receiver
       - '4318:4318'   # OTLP HTTP receiver
@@ -171,13 +294,17 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
     depends_on:
-      - jaeger
+      jaeger:
+        condition: service_started
+      loki:
+        condition: service_healthy
     healthcheck:
       disable: true
 
   # --- Jaeger (Trace visualization UI) ---
   jaeger:
     image: 'jaegertracing/all-in-one:1.57'
+    profiles: [observability]
     ports:
       - '16686:16686'  # Jaeger UI
       - '14250:14250'  # gRPC (used by OTel Collector)
@@ -190,8 +317,95 @@ services:
       retries: 5
       start_period: 10s
 
+  # ===========================================================================
+  # MONITORING (profile: monitoring)
+  # Includes: Prometheus, Grafana, Node Exporter, Kafka UI, Redis Insight
+  # Start with: docker compose --profile monitoring up -d
+  # ===========================================================================
+
+  # --- Kafka UI (Kafka Dashboard) ---
+  kafka-ui:
+    image: 'provectuslabs/kafka-ui:latest'
+    profiles: [monitoring]
+    ports:
+      - '8086:8080'
+    environment:
+      KAFKA_CLUSTERS_0_NAME: interview-platform
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # --- RedisInsight (Redis Dashboard) ---
+  redis-insight:
+    image: 'redis/redisinsight:latest'
+    profiles: [monitoring]
+    ports:
+      - '5540:5540'
+    volumes:
+      - redisinsight_data:/data
+
+  # --- Prometheus (Metrics) ---
+  prometheus:
+    image: 'prom/prometheus:latest'
+    profiles: [monitoring]
+    ports:
+      - '9091:9090'
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../monitoring/alerting-rules.yml:/etc/prometheus/alerting-rules.yml
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # --- Grafana (Dashboards) ---
+  grafana:
+    image: 'grafana/grafana:latest'
+    profiles: [monitoring]
+    ports:
+      - '3001:3000'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --- Node Exporter (Host metrics) ---
+  node-exporter:
+    image: 'prom/node-exporter:latest'
+    profiles: [monitoring]
+    ports:
+      - '9100:9100'
+
 volumes:
   postgres_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
   localstack_data:
   redis_data:
   vault_data:
+  keycloak_data:
+  elasticsearch_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:
+  redisinsight_data:

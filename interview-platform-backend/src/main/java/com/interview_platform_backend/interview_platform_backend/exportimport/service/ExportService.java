@@ -18,6 +18,7 @@ import com.interview_platform_backend.interview_platform_backend.questionbank.en
 import com.interview_platform_backend.interview_platform_backend.questionbank.repository.QuestionRepository;
 import com.interview_platform_backend.interview_platform_backend.user.entity.User;
 import com.interview_platform_backend.interview_platform_backend.user.repository.UserRepository;
+import com.interview_platform_backend.interview_platform_backend.tenant.repository.OrganizationMemberRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.slf4j.Logger;
@@ -48,6 +49,7 @@ public class ExportService {
     private final InterviewFeedbackRepository feedbackRepository;
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
     private final S3StorageService s3StorageService;
     private final ObjectMapper objectMapper;
 
@@ -56,24 +58,40 @@ public class ExportService {
                          InterviewFeedbackRepository feedbackRepository,
                          QuestionRepository questionRepository,
                          UserRepository userRepository,
+                         OrganizationMemberRepository organizationMemberRepository,
                          S3StorageService s3StorageService) {
         this.jobRepository = jobRepository;
         this.interviewRepository = interviewRepository;
         this.feedbackRepository = feedbackRepository;
         this.questionRepository = questionRepository;
         this.userRepository = userRepository;
+        this.organizationMemberRepository = organizationMemberRepository;
         this.s3StorageService = s3StorageService;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
+    /**
+     * Resolve the organization ID for a user from their organization membership.
+     * Throws BadRequestException if the user has no organization membership.
+     */
+    private UUID resolveOrganizationId(UUID userId) {
+        return organizationMemberRepository.findByUserId(userId).stream()
+                .findFirst()
+                .map(member -> member.getOrganization().getId())
+                .orElseThrow(() -> new BadRequestException(
+                        "User " + userId + " does not belong to any organization. Cannot perform export."));
+    }
+
     public ExportImportJob createExportJob(String entityType, JobFormat format, Map<String, String> filters, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("User not found: " + userId));
 
+        UUID organizationId = resolveOrganizationId(userId);
+
         ExportImportJob job = ExportImportJob.builder()
-                .organizationId(userId) // Using userId as org placeholder
+                .organizationId(organizationId)
                 .user(user)
                 .type(JobType.EXPORT)
                 .format(format)

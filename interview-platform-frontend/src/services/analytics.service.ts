@@ -1,7 +1,7 @@
 import api from "@/lib/axios";
 import { ANALYTICS_ENDPOINTS } from "@/lib/api-endpoints";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Legacy Types (used by leaderboard, etc.) ────────────────────────────────
 
 export interface CohortData {
   period: string;
@@ -36,8 +36,6 @@ export interface RetentionData {
   retentionRate: number;
 }
 
-// ─── Service ─────────────────────────────────────────────────────────────────
-
 export const analyticsService = {
   getCohorts: async (startDate?: string, endDate?: string): Promise<CohortData[]> => {
     const res = await api.get(ANALYTICS_ENDPOINTS.cohorts, {
@@ -64,4 +62,46 @@ export const analyticsService = {
     });
     return res.data;
   },
+};
+
+// ─── New Analytics Types & API ───────────────────────────────────────────────
+
+export interface HiringPrediction {
+  candidateId: string;
+  successProbability: number;
+  recommendation: string;
+  confidence: number;
+  features: Record<string, number>;
+  topFactors: string[];
+  predictedTimeToOffer: number;
+}
+
+export interface FunnelOverview {
+  totalCandidates: number;
+  totalHired: number;
+  totalRejected: number;
+  overallConversion: number;
+  avgTimeToHire: number;
+  stageBreakdown: { stage: string; count: number }[];
+  conversionRates: Record<string, number>;
+}
+
+export const getFunnelOverview = async (periodType = "MONTHLY"): Promise<FunnelOverview> => {
+  const res = await api.get("/api/v1/analytics/funnel", { params: { periodType } });
+  return res.data;
+};
+
+export const predictHiringSuccess = async (candidateId: string): Promise<HiringPrediction> => {
+  const res = await api.get(`/api/v1/analytics/predict/${candidateId}`);
+  return res.data;
+};
+
+export const getModelMetrics = async () => {
+  const res = await api.get("/api/v1/analytics/model/metrics");
+  return res.data;
+};
+
+export const triggerComputation = async (): Promise<string> => {
+  const res = await api.post("/api/v1/analytics/compute");
+  return res.data;
 };

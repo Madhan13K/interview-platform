@@ -23,7 +23,10 @@ public class CandidateChatbotService {
     @Value("${app.ai.openai.api-key:}")
     private String openAiApiKey;
 
-    @Value("${app.ai.openai.model:gpt-4o-mini}")
+    @Value("${app.ai.openai.api-url:https://openrouter.ai/api/v1/chat/completions}")
+    private String apiUrl;
+
+    @Value("${app.ai.openai.model:openai/gpt-4o-mini}")
     private String model;
 
     private final InterviewRepository interviewRepository;
@@ -86,9 +89,11 @@ public class CandidateChatbotService {
             );
 
             var response = restClient.post()
-                    .uri("https://api.openai.com/v1/chat/completions")
+                    .uri(apiUrl)
                     .header("Authorization", "Bearer " + openAiApiKey)
                     .header("Content-Type", "application/json")
+                    .header("HTTP-Referer", "https://interview-platform.app")
+                    .header("X-Title", "Interview Platform AI")
                     .body(requestBody)
                     .retrieve()
                     .body(Map.class);

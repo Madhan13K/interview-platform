@@ -33,7 +33,7 @@ public class InterviewInterviewer {
     @JoinColumn(name = "interviewer_id", nullable = false)
     private User interviewer;
 
-    @Column(nullable = false)
+    @Column(name = "primary_interviewer", nullable = false)
     private boolean isPrimaryInterviewer;
 
     private Instant assignedAt;

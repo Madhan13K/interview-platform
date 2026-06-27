@@ -22,8 +22,10 @@ A practical "how to get everything working" reference for the Interview Platform
 | Twilio | SMS notifications | No | Yes (trial) | Account SID + Auth Token + Phone Number |
 | Slack | Webhook notifications | No | Yes (free) | Webhook URL |
 | Microsoft Teams | Webhook notifications | No | Yes (free) | Webhook URL |
-| Zoom | Video meeting links | No | Yes (free tier) | API Key + API Secret |
+| Zoom | Video meeting links | No | Yes (free tier) | Account ID + Client ID + Client Secret (Server-to-Server OAuth) |
 | Google Meet | Video meeting links | No | Yes (reuses OAuth2) | Google OAuth2 credentials |
+| **Okta (OIDC)** | **Primary SSO via OpenID Connect** | **No** | **Yes (developer)** | **Client ID + Client Secret + Issuer URI** |
+| **Keycloak** | **Fallback SSO via OpenID Connect** | **No** | **Self-hosted (Docker)** | **Admin creds + Client ID + Secret** |
 | DocuSign | E-signatures on offer letters | No | Yes (sandbox) | Integration Key + Account ID |
 | HelloSign (Dropbox Sign) | E-signatures on offer letters | No | Yes (test mode) | API Key |
 | Google Calendar API | Calendar sync | No | Yes (reuses OAuth2) | Google OAuth2 credentials |
@@ -42,6 +44,12 @@ A practical "how to get everything working" reference for the Interview Platform
 | **Sterling** | **Background checks (alternative)** | **No** | **No** | **API Key** |
 | **Greenhouse** | **ATS bidirectional sync** | **No** | **No** | **API Key (Harvest)** |
 | **Lever** | **ATS bidirectional sync** | **No** | **No** | **API Key** |
+| **Workday** | **ATS bidirectional sync** | **No** | **No** | **Tenant URL + Client ID** |
+| **LinkedIn** | **Job board posting** | **No** | **No** | **Access Token** |
+| **Indeed** | **Job board posting** | **No** | **Yes (free tier)** | **Employer ID + API Key** |
+| **Glassdoor** | **Job board posting** | **No** | **No** | **API Key** |
+| **LaunchDarkly** | **Feature flags (cloud)** | **No** | **Yes (free tier)** | **SDK Key** |
+| **Flagsmith** | **Feature flags (alternative)** | **No** | **Yes (free tier)** | **API Key** |
 | **ClamAV** | **Virus scanning on file uploads** | **No** | **Self-hosted (Docker)** | **Host + Port (3310)** |
 | **GitHub (PAT)** | **Candidate sourcing (search developers)** | **No** | **Yes (free)** | **Personal Access Token** |
 
@@ -587,22 +595,18 @@ curl -X POST "${TEAMS_WEBHOOK_URL}" \
 6. Once activated, go to **App Credentials**
 7. Copy **Account ID**, **Client ID**, and **Client Secret**
 
-**Alternative (JWT - deprecated but simpler for dev):**
-1. In the Marketplace, create a **JWT App**
-2. Copy the **API Key** and **API Secret**
-
 **Environment variables:**
 ```bash
 ZOOM_ENABLED=true
-ZOOM_API_KEY=your-zoom-api-key
-ZOOM_API_SECRET=your-zoom-api-secret
+ZOOM_ACCOUNT_ID=your-zoom-account-id
+ZOOM_CLIENT_ID=your-zoom-client-id
+ZOOM_CLIENT_SECRET=your-zoom-client-secret
 ```
 
 **Test:**
 ```bash
-# Generate a JWT token manually to test
 # The platform generates meeting links via the MeetingService when scheduling interviews
-# Check logs for: "Generated Zoom meeting link: ..."
+# Check logs for: "Zoom meeting created: ID=..., URL=..."
 ```
 
 ---
@@ -917,97 +921,643 @@ VAULT_SECRET_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ---
 
-## 11. SSO/SAML Identity Providers (for Testing)
+## 11. SSO Identity Providers
 
-### Okta Developer Account
+### Architecture
+
+The platform supports enterprise SSO with:
+- **Okta (Primary)** — OpenID Connect (OIDC)
+- **Keycloak (Fallback)** — OpenID Connect (OIDC), self-hosted via Docker
+- **OneLogin / Azure AD / Generic** — SAML 2.0 (legacy/enterprise)
+
+If Okta OIDC login fails (provider unreachable), the system **automatically falls back** to Keycloak.
+
+---
+
+### Okta (OpenID Connect - Primary SSO)
 
 **Step-by-step setup:**
 
 1. Sign up at [Okta Developer](https://developer.okta.com/signup/)
 2. After signup, go to **Applications > Create App Integration**
-3. Select **SAML 2.0**
-4. Fill in:
+3. Select **OIDC - OpenID Connect**
+4. Application type: **Web Application**
+5. Fill in:
    - App name: `Interview Platform`
-   - Single Sign-On URL: `http://localhost:8080/login/saml2/sso/okta`
-   - Audience URI (SP Entity ID): `http://localhost:8080/saml2/service-provider-metadata/okta`
-   - Name ID format: `EmailAddress`
-   - Attribute Statements:
-     - `email` -> `user.email`
-     - `firstName` -> `user.firstName`
-     - `lastName` -> `user.lastName`
-5. Click **Finish**
-6. Go to **Sign On** tab > copy the **Metadata URL**
-7. Assign users/groups to the app
+   - Sign-in redirect URIs: `http://localhost:8080/login/oauth2/code/okta`
+   - Sign-out redirect URIs: `http://localhost:5173`
+   - Controlled access: Skip group assignment for now
+6. Click **Save**
+7. Copy **Client ID** and **Client Secret** from the General tab
+8. Note your **Okta domain** (e.g., `dev-12345678.okta.com`)
+9. Assign users/groups to the app under the **Assignments** tab
 
-**Configure in platform:**
+**Issuer URI:** `https://{your-okta-domain}/oauth2/default`
+
+**Environment variables:**
+```bash
+OKTA_CLIENT_ID=0oaxxxxxxxxxxxxxxxxx
+OKTA_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OKTA_ISSUER_URI=https://dev-xxxxxxxx.okta.com/oauth2/default
+OKTA_AUTH_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/authorize
+OKTA_TOKEN_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/token
+OKTA_USERINFO_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/userinfo
+OKTA_JWKS_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/keys
 ```
-POST /api/v1/sso/configurations
-{
-  "organizationId": "<org-uuid>",
-  "providerName": "Okta",
-  "entityId": "http://www.okta.com/exkxxxxxxxxxxxxxxxxx",
-  "ssoUrl": "https://your-org.okta.com/app/xxxxxxxxxxxxxxxxx/sso/saml",
-  "certificate": "<X.509 cert from Okta metadata>",
-  "enabled": true
+
+**Test locally:**
+```bash
+open "http://localhost:8080/oauth2/authorization/okta"
+# Should redirect to Okta login, then back with tokens
+```
+
+---
+
+### Keycloak (OpenID Connect - Fallback SSO)
+
+**Runs locally via Docker Compose** (already included in `compose.yaml`).
+
+**Default credentials:**
+```
+Admin Console: http://localhost:9090
+Admin Username: admin
+Admin Password: admin
+Realm: interview-platform
+Client ID: interview-platform
+Client Secret: FqQdEOnNuda9oTWvk2AgcKdOARHUCQgV
+```
+
+**Setup after first `docker compose up`:**
+
+1. Open Keycloak Admin Console: http://localhost:9090
+2. Login with `admin` / `admin`
+3. Create a new Realm: `interview-platform`
+4. Go to **Clients > Create client**:
+   - Client type: **OpenID Connect**
+   - Client ID: `interview-platform`
+   - Client authentication: **ON** (confidential)
+5. Under **Settings**:
+   - Valid Redirect URIs: `http://localhost:8080/login/oauth2/code/keycloak`
+   - Web Origins: `http://localhost:8080`, `http://localhost:5173`
+6. Under **Credentials** tab: copy/set secret to `FqQdEOnNuda9oTWvk2AgcKdOARHUCQgV`
+7. Create test users under **Users > Add user**
+
+**Environment variables:**
+```bash
+KEYCLOAK_SSO_ENABLED=true
+KEYCLOAK_SERVER_URL=http://localhost:9090
+KEYCLOAK_REALM=interview-platform
+KEYCLOAK_CLIENT_ID=interview-platform
+KEYCLOAK_CLIENT_SECRET=FqQdEOnNuda9oTWvk2AgcKdOARHUCQgV
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+KEYCLOAK_ISSUER_URI=http://localhost:9090/realms/interview-platform
+KEYCLOAK_AUTH_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/auth
+KEYCLOAK_TOKEN_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/token
+KEYCLOAK_USERINFO_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/userinfo
+KEYCLOAK_JWKS_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/certs
+```
+
+**Test locally:**
+```bash
+open "http://localhost:8080/oauth2/authorization/keycloak"
+# Should redirect to Keycloak login, then back with tokens
+```
+
+---
+
+### SAML 2.0 Providers (OneLogin, Azure AD, Generic)
+
+These remain available for enterprises that require SAML 2.0.
+Configurations are stored per-tenant in the database and managed via the `/api/v1/sso` endpoints.
+
+---
+
+## 11.5 ATS Integrations
+
+### Workday
+
+**Step-by-step setup:**
+
+1. Contact your Workday administrator for API access
+2. In Workday Admin: **Integration > API Client Registration**
+3. Register an API client:
+   - Client Name: `Interview Platform`
+   - Scope: Recruiting (Staffing)
+4. Note the **Tenant URL** (e.g., `https://wd5-impl-services1.workday.com/ccx/api/v1/your-tenant`)
+5. Copy the **Client ID** and generate a **Client Secret**
+
+**Environment variables:**
+```bash
+WORKDAY_TENANT_URL=https://wd5-impl-services1.workday.com/ccx/api/v1/your-tenant
+WORKDAY_CLIENT_ID=your-workday-client-id
+```
+
+---
+
+### Greenhouse (ATS)
+
+**Step-by-step setup:**
+
+1. Go to [Greenhouse](https://www.greenhouse.io/) — requires an active account
+2. Login to your Greenhouse dashboard
+3. Go to **Configure > Dev Center > API Credential Management**
+4. Click **Create New API Key**
+5. Select type: **Harvest API** (for full access to candidates, jobs, etc.)
+6. Copy the generated API key
+
+**Environment variables:**
+```bash
+GREENHOUSE_API_KEY=your-greenhouse-harvest-api-key
+GREENHOUSE_BASE_URL=https://harvest.greenhouse.io/v1
+```
+
+**Test:**
+```bash
+curl -u "${GREENHOUSE_API_KEY}:" https://harvest.greenhouse.io/v1/candidates?per_page=1
+# Should return candidate data
+```
+
+---
+
+### Lever (ATS)
+
+**Step-by-step setup:**
+
+1. Go to [Lever](https://www.lever.co/) — requires an active account
+2. Login to your Lever dashboard
+3. Go to **Settings > Integrations & API > API Credentials**
+4. Click **Generate New Key**
+5. Select permissions: Candidates (read/write), Postings (read)
+6. Copy the API key
+
+**Environment variables:**
+```bash
+LEVER_API_KEY=your-lever-api-key
+LEVER_BASE_URL=https://api.lever.co/v1
+```
+
+**Test:**
+```bash
+curl -u "${LEVER_API_KEY}:" https://api.lever.co/v1/postings?limit=1
+# Should return postings
+```
+
+---
+
+## 11.6 Job Board Posting
+
+### LinkedIn
+
+**Step-by-step setup:**
+
+1. Go to [LinkedIn Developer Portal](https://www.linkedin.com/developers/)
+2. Click **Create app**
+3. Fill in: Company page, app name, logo
+4. Under **Products**, request access to **Share on LinkedIn** and **Job Posting API**
+5. Go to **Auth** tab → copy **Client ID** and **Client Secret**
+6. Generate an **Access Token** (OAuth 2.0 3-legged flow or use LinkedIn's token generator)
+
+**Environment variables:**
+```bash
+LINKEDIN_ACCESS_TOKEN=your-linkedin-access-token
+```
+
+> **Note:** LinkedIn tokens expire (60 days). For production, implement token refresh flow.
+
+---
+
+### Indeed
+
+**Step-by-step setup:**
+
+1. Go to [Indeed Publisher Portal](https://developers.indeed.com/)
+2. Sign up for a publisher account
+3. Navigate to **API Keys** in your dashboard
+4. Create a new application
+5. Copy the **Employer ID** and **API Key**
+
+**Environment variables:**
+```bash
+INDEED_EMPLOYER_ID=your-indeed-employer-id
+INDEED_API_KEY=your-indeed-api-key
+```
+
+---
+
+### Glassdoor
+
+**Step-by-step setup:**
+
+1. Go to [Glassdoor API](https://www.glassdoor.com/developer/index.htm)
+2. Apply for API access (requires approval)
+3. Once approved, you'll receive an **API Key** and **Partner ID**
+4. API documentation: https://www.glassdoor.com/developer/index.htm
+
+**Environment variables:**
+```bash
+GLASSDOOR_API_KEY=your-glassdoor-api-key
+```
+
+---
+
+## 11.7 Feature Flags
+
+### LaunchDarkly
+
+**Step-by-step setup:**
+
+1. Sign up at [LaunchDarkly](https://launchdarkly.com/) (14-day free trial)
+2. Create a project: `interview-platform`
+3. Go to **Account Settings > Projects > interview-platform > Environments**
+4. Copy the **SDK Key** for your environment (Development/Production)
+
+**Environment variables:**
+```bash
+FEATURE_FLAGS_PROVIDER=launchdarkly
+LAUNCHDARKLY_SDK_KEY=sdk-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+**Test:**
+```bash
+# Feature flags are read on startup and cached
+curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/feature-flags
+```
+
+---
+
+### Flagsmith (Alternative)
+
+**Step-by-step setup:**
+
+1. Sign up at [Flagsmith](https://www.flagsmith.com/) (free tier: 50k requests/month)
+2. Create an organisation and project
+3. Go to **Settings > Keys**
+4. Copy the **Server-side Environment Key**
+
+**Environment variables:**
+```bash
+FEATURE_FLAGS_PROVIDER=flagsmith
+FLAGSMITH_API_KEY=ser.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FLAGSMITH_BASE_URL=https://edge.api.flagsmith.com/api/v1
+```
+
+---
+
+## 11.8 Candidate Sourcing
+
+### GitHub Personal Access Token (for Developer Search)
+
+**Step-by-step setup:**
+
+1. Go to [GitHub Settings > Developer Settings > Personal Access Tokens](https://github.com/settings/tokens)
+2. Click **Generate new token (classic)**
+3. Name: `Interview Platform Sourcing`
+4. Select scopes:
+   - `read:user` (read user profile data)
+   - `user:email` (read user email)
+5. Click **Generate token**
+6. Copy the token immediately (starts with `ghp_`)
+
+**Environment variables:**
+```bash
+GITHUB_SOURCING_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Test:**
+```bash
+curl -H "Authorization: Bearer ${GITHUB_SOURCING_TOKEN}" \
+  "https://api.github.com/search/users?q=language:java+location:bangalore&per_page=5"
+# Should return developer profiles
+```
+
+> **Rate limits:** 30 requests/minute for authenticated search API.
+
+---
+
+## 11.9 OpenAI (AI Services)
+
+### OpenAI API Key
+
+**Step-by-step setup:**
+
+1. Go to [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or log in
+3. Go to **API Keys** (https://platform.openai.com/api-keys)
+4. Click **Create new secret key**
+5. Name: `Interview Platform`
+6. Copy the key (starts with `sk-`)
+
+**Pricing:** Pay-per-use. GPT-4o-mini costs ~$0.15/1M input tokens, ~$0.60/1M output tokens.
+
+**Environment variables:**
+```bash
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_MAX_TOKENS=1000
+OPENAI_TEMPERATURE=0.7
+AI_SCORING_ENABLED=true
+```
+
+**Test:**
+```bash
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer ${OPENAI_API_KEY}" | head -5
+# Should return available models list
+```
+
+> **Note:** All 13 AI services (Coach, Matching, Screening, Scoring, etc.) use this single API key.
+
+---
+
+## 11.10 Payment Gateways — How to Get Credentials & Collect Payments
+
+The platform supports **5 payment gateways** for subscription billing and one-time payments. Stripe handles international payments; Razorpay/PayU/Cashfree/PhonePe handle India (UPI, Cards, NetBanking, Wallets).
+
+### How Payment Collection Works
+
+```
+Organization Admin (your customer)
+        │
+        ▼
+[Frontend] Settings > Billing > Upgrade Plan
+        │ POST /api/v1/billing/checkout
+        ▼
+[BillingService] creates a Checkout Session on Stripe (or payment order on Indian gateway)
+        │ returns checkout URL
+        ▼
+[Frontend] redirects customer to hosted payment page (Stripe/Razorpay/etc.)
+        │ customer enters card/UPI/netbanking details
+        ▼
+[Payment Gateway] processes payment, sends webhook to your backend
+        │ POST /api/v1/billing/webhooks/stripe
+        ▼
+[BillingController] verifies webhook signature, updates subscription status
+        │ marks PaymentTransaction as CAPTURED, Invoice as PAID
+        ▼
+[Organization] now has active subscription with upgraded features
+```
+
+**Subscription Plans (seeded in DB):**
+
+| Plan | USD/mo | INR/mo | Limits |
+|------|--------|--------|--------|
+| Free | $0 | ₹0 | 5 interviews/mo, 2 users, 1GB storage |
+| Starter | $29 | ₹2,499 | 50 interviews/mo, 10 users, 10GB, basic AI |
+| Professional | $99 | ₹7,999 | 500 interviews/mo, 50 users, 100GB, full AI + video |
+| Enterprise | $299 | ₹24,999 | Unlimited, SSO, white-labeling, API access, dedicated support |
+
+---
+
+### Stripe (International — Cards, SEPA, Apple Pay, Google Pay)
+
+**Step-by-step setup:**
+
+1. Sign up at [Stripe Dashboard](https://dashboard.stripe.com/register)
+2. After email verification, you're in **Test mode** automatically (no real charges)
+3. Go to **Developers > API Keys**
+4. Copy the **Secret key** (starts with `sk_test_`)
+5. For webhooks: **Developers > Webhooks > Add endpoint**
+   - Endpoint URL: `https://your-backend.com/api/v1/billing/webhooks/stripe`
+   - Events to listen for:
+     - `checkout.session.completed`
+     - `customer.subscription.created`
+     - `customer.subscription.updated`
+     - `customer.subscription.deleted`
+     - `invoice.paid`
+     - `invoice.payment_failed`
+   - Copy the **Signing secret** (starts with `whsec_`)
+6. Create Products & Prices in **Products** tab (or via API)
+
+**Environment variables:**
+```bash
+BILLING_ENABLED=true
+STRIPE_ENABLED=true
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Test payments (Stripe test cards):**
+```
+Success:        4242 4242 4242 4242 (any future date, any CVC)
+Declined:       4000 0000 0000 0002
+Requires auth:  4000 0025 0000 3155
+```
+
+**How to charge a customer:**
+```bash
+# 1. Create a customer (call from your admin panel)
+curl -X POST localhost:8080/api/v1/billing/customers \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "customer@company.com", "name": "Acme Corp"}'
+
+# 2. Create a checkout session (redirects customer to pay)
+curl -X POST localhost:8080/api/v1/billing/checkout \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cus_xxxxx",
+    "priceId": "price_xxxxx",
+    "successUrl": "http://localhost:5173/settings/billing?success=true",
+    "cancelUrl": "http://localhost:5173/settings/billing?cancelled=true"
+  }'
+# Returns: { "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_..." }
+
+# 3. Customer completes payment on Stripe's hosted page
+# 4. Stripe sends webhook → your backend updates subscription status
+```
+
+**Going live (production):**
+1. Complete Stripe account activation (business details, bank account)
+2. Switch from `sk_test_` to `sk_live_` key
+3. Update webhook endpoint to production URL
+4. Set `BILLING_DEFAULT_CURRENCY=USD` (or `INR` for India)
+
+---
+
+### Razorpay (India — UPI, Cards, NetBanking, Wallets, EMI)
+
+**Step-by-step setup:**
+
+1. Sign up at [Razorpay Dashboard](https://dashboard.razorpay.com/signup)
+2. Use **Test mode** (toggle at top of dashboard) — no KYC needed for testing
+3. Go to **Settings > API Keys > Generate Key**
+4. Copy **Key ID** (starts with `rzp_test_`) and **Key Secret**
+5. For webhooks: **Settings > Webhooks > Add New Webhook**
+   - URL: `https://your-backend.com/api/v1/billing/webhooks/razorpay`
+   - Events: `payment.captured`, `subscription.activated`, `subscription.cancelled`
+   - Copy the **Webhook Secret**
+
+**Environment variables:**
+```bash
+RAZORPAY_ENABLED=true
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxx
+```
+
+**How to charge a customer (India):**
+```bash
+# 1. Create a payment order
+curl -X POST localhost:8080/api/v1/billing/razorpay/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"amount": 249900, "currency": "INR", "planSlug": "starter"}'
+# Returns: { "orderId": "order_xxx", "amount": 249900, "currency": "INR" }
+
+# 2. Frontend opens Razorpay checkout with the orderId
+# 3. Customer pays via UPI/Card/NetBanking
+# 4. Razorpay calls webhook → backend verifies signature + updates status
+```
+
+**Test UPI:** Use `success@razorpay` as VPA in test mode  
+**Test Card:** `4111 1111 1111 1111` (any future date, any CVV)
+
+**Going live:**
+1. Complete KYC on Razorpay dashboard
+2. Switch to live keys (toggle off Test mode)
+3. Add bank account for settlements
+
+---
+
+### PayU (India — UPI, Cards, NetBanking, Wallets, BNPL)
+
+**Step-by-step setup:**
+
+1. Sign up at [PayU Business](https://payu.in/business)
+2. Use Test dashboard at https://test.payu.in (or sandbox.payu.in)
+3. Go to **Dashboard > Manage Account > Merchant Key & Salt**
+4. Copy the **Merchant Key** and **Salt (v2)**
+5. Use test credentials for sandbox:
+   - Test URL: `https://test.payu.in/_payment`
+   - Production URL: `https://secure.payu.in/_payment`
+
+**Environment variables:**
+```bash
+PAYU_ENABLED=true
+PAYU_MERCHANT_KEY=your-merchant-key
+PAYU_MERCHANT_SALT=your-merchant-salt-v2
+PAYU_BASE_URL=https://test.payu.in
+```
+
+**Test cards:**
+```
+Success: 5123 4567 8901 2346 (CVV: 123, Expiry: any future)
+Failure: 4000 0000 0000 0002
+```
+
+**Going live:**
+1. Complete merchant verification with PayU
+2. Switch `PAYU_BASE_URL` to `https://secure.payu.in`
+3. Use production Merchant Key / Salt
+
+---
+
+### Cashfree (India — UPI, Cards, NetBanking, PayLater, EMI)
+
+**Step-by-step setup:**
+
+1. Sign up at [Cashfree Merchant](https://merchant.cashfree.com/signup)
+2. Use **Sandbox** mode (no KYC needed)
+3. Go to **Developers > API Keys**
+4. Select **Sandbox** environment
+5. Copy the **App ID** and **Secret Key**
+6. Webhook: **Developers > Webhooks > Add Endpoint**
+   - URL: `https://your-backend.com/api/v1/billing/webhooks/cashfree`
+   - Events: `PAYMENT_SUCCESS`, `SUBSCRIPTION_STATUS`
+
+**Environment variables:**
+```bash
+CASHFREE_ENABLED=true
+CASHFREE_APP_ID=your-sandbox-app-id
+CASHFREE_SECRET_KEY=your-sandbox-secret-key
+CASHFREE_BASE_URL=https://sandbox.cashfree.com/pg
+```
+
+**Test UPI:** `testsuccess@gocash` (always succeeds in sandbox)
+
+**Going live:**
+1. Complete KYC on Cashfree
+2. Switch to Production API keys
+3. Change `CASHFREE_BASE_URL=https://api.cashfree.com/pg`
+
+---
+
+### PhonePe (India — UPI, Cards, NetBanking, Wallets)
+
+**Step-by-step setup:**
+
+1. Sign up at [PhonePe Business](https://business.phonepe.com/)
+2. Apply for **UAT (sandbox)** access via the developer portal
+3. Once approved, go to **Integration Dashboard**
+4. Copy **Merchant ID**, **Salt Key**, and **Salt Index** (usually `1`)
+5. Use UAT/sandbox environment for testing
+
+**Environment variables:**
+```bash
+PHONEPE_ENABLED=true
+PHONEPE_MERCHANT_ID=PGTESTPAYUAT
+PHONEPE_SALT_KEY=099eb0cd-02cf-4e2a-8aca-3e6c6aff0399
+PHONEPE_SALT_INDEX=1
+PHONEPE_BASE_URL=https://api-preprod.phonepe.com/apis/pg-sandbox
+```
+
+> **Note:** The above are PhonePe's public UAT credentials for testing.
+
+**Going live:**
+1. Complete merchant onboarding with PhonePe
+2. Switch to production credentials
+3. Change `PHONEPE_BASE_URL=https://api.phonepe.com/apis/hermes`
+
+---
+
+### Which Gateway to Use?
+
+| Use Case | Recommended Gateway |
+|----------|-------------------|
+| International customers (US/EU) | **Stripe** |
+| Indian customers (all methods) | **Razorpay** (most popular in India) |
+| Indian UPI-heavy | **PhonePe** or **Cashfree** |
+| Indian with BNPL/EMI | **PayU** or **Cashfree** |
+| Multi-gateway (failover) | Enable multiple, route by currency |
+
+**Multi-gateway strategy:** Enable Stripe for USD/EUR and Razorpay for INR. The `PaymentGatewayProvider` interface allows routing payments to the correct gateway based on currency:
+
+```java
+// In your code, select gateway by currency:
+if ("INR".equals(currency)) {
+    razorpayGateway.createPaymentOrder(amount, currency, metadata);
+} else {
+    stripeGateway.createCheckoutSession(customerId, priceId, urls);
 }
 ```
 
 ---
 
-### Keycloak (Local SAML IdP)
+## 11.11 Data Residency & Mobile SDK
 
-**Add to `compose.yaml`:**
-```yaml
-keycloak:
-  image: quay.io/keycloak/keycloak:23.0
-  ports:
-    - '9090:8080'
-  environment:
-    KEYCLOAK_ADMIN: admin
-    KEYCLOAK_ADMIN_PASSWORD: admin
-  command: start-dev
-```
+### Data Residency
 
-**Setup:**
+No external credentials needed. Configuration controls which AWS regions are used for data storage per-tenant.
+
+**Environment variables:**
 ```bash
-docker compose up keycloak
-
-# Access admin console
-open http://localhost:9090/admin
-# Login: admin / admin
+DATA_RESIDENCY_DEFAULT_REGION=us-east-1
+DATA_RESIDENCY_EU_REGION=eu-west-1
+DATA_RESIDENCY_AP_REGION=ap-south-1
 ```
-
-1. Create a realm: `interview-platform`
-2. Go to **Clients > Create client**
-3. Client type: **SAML**
-4. Client ID: `http://localhost:8080/saml2/service-provider-metadata/keycloak`
-5. Set:
-   - Root URL: `http://localhost:8080`
-   - Valid Redirect URIs: `http://localhost:8080/login/saml2/sso/keycloak`
-   - IDP-Initiated SSO URL Name: `interview-platform`
-6. Under **Keys** tab, disable "Client signature required"
-7. Create a test user in **Users > Add user**
-8. Export realm metadata from: `http://localhost:9090/realms/interview-platform/protocol/saml/descriptor`
 
 ---
 
-### Azure AD B2C (Free Tier)
+### Mobile SDK Configuration
 
-**Step-by-step setup:**
+No external credentials needed. Controls mobile app behavior remotely.
 
-1. Go to [Azure Portal](https://portal.azure.com/)
-2. Search for **Azure AD B2C** > Create a new tenant
-3. In the B2C tenant, go to **App registrations > New registration**
-4. Register a SAML app:
-   - Name: `Interview Platform SAML`
-   - Redirect URI: `http://localhost:8080/login/saml2/sso/azure`
-5. Go to **Enterprise applications** > select your app > **Single sign-on** > **SAML**
-6. Set:
-   - Identifier (Entity ID): `http://localhost:8080/saml2/service-provider-metadata/azure`
-   - Reply URL: `http://localhost:8080/login/saml2/sso/azure`
-7. Download the **Federation Metadata XML**
-
-> **Free tier:** Azure AD B2C is free for up to 50,000 authentications/month.
+**Environment variables:**
+```bash
+MOBILE_MIN_VERSION=1.0.0
+MOBILE_FORCE_UPDATE=false
+MOBILE_MAINTENANCE_MODE=false
+```
 
 ---
 
@@ -1214,10 +1764,11 @@ NOTIFICATIONS_ENABLED=true
 # =============================================================================
 # MEETING PROVIDERS [OPTIONAL]
 # =============================================================================
-# --- Zoom ---
+# --- Zoom (Server-to-Server OAuth) ---
 ZOOM_ENABLED=false
-ZOOM_API_KEY=
-ZOOM_API_SECRET=
+ZOOM_ACCOUNT_ID=
+ZOOM_CLIENT_ID=
+ZOOM_CLIENT_SECRET=
 
 # --- Google Meet (reuses Google OAuth2 credentials) ---
 GOOGLE_MEET_ENABLED=false
@@ -1251,10 +1802,33 @@ CALENDAR_SYNC_INTERVAL=15
 OFFER_EXPIRY_DAYS=7
 
 # =============================================================================
-# SSO / SAML [OPTIONAL]
+# SSO / IDENTITY PROVIDERS [OPTIONAL]
 # =============================================================================
 # Base URL for SAML metadata and assertion consumer service
 SSO_BASE_URL=http://localhost:8080
+
+# --- Okta OIDC (Primary SSO) ---
+OKTA_CLIENT_ID=your-okta-client-id
+OKTA_CLIENT_SECRET=your-okta-client-secret
+OKTA_ISSUER_URI=https://dev-xxxxxxxx.okta.com/oauth2/default
+OKTA_AUTH_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/authorize
+OKTA_TOKEN_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/token
+OKTA_USERINFO_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/userinfo
+OKTA_JWKS_URL=https://dev-xxxxxxxx.okta.com/oauth2/default/v1/keys
+
+# --- Keycloak OIDC (Fallback SSO - self-hosted) ---
+KEYCLOAK_SSO_ENABLED=true
+KEYCLOAK_SERVER_URL=http://localhost:9090
+KEYCLOAK_REALM=interview-platform
+KEYCLOAK_CLIENT_ID=interview-platform
+KEYCLOAK_CLIENT_SECRET=FqQdEOnNuda9oTWvk2AgcKdOARHUCQgV
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+KEYCLOAK_ISSUER_URI=http://localhost:9090/realms/interview-platform
+KEYCLOAK_AUTH_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/auth
+KEYCLOAK_TOKEN_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/token
+KEYCLOAK_USERINFO_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/userinfo
+KEYCLOAK_JWKS_URL=http://localhost:9090/realms/interview-platform/protocol/openid-connect/certs
 
 # =============================================================================
 # HASHICORP VAULT [OPTIONAL in dev, REQUIRED in prod]
@@ -1338,6 +1912,8 @@ DOCKER_COMPOSE_ENABLED=true
 |---------|-------------------|
 | User registration & login (email/password) | JWT_SECRET + DB |
 | OAuth2 social login | GOOGLE/GITHUB/MICROSOFT_CLIENT_ID + SECRET |
+| SSO (Okta OIDC - primary) | OKTA_CLIENT_ID + OKTA_CLIENT_SECRET + OKTA_ISSUER_URI |
+| SSO (Keycloak OIDC - fallback) | Docker Compose (auto-configured) |
 | Email notifications | MAIL_USERNAME + MAIL_PASSWORD |
 | SMS notifications | TWILIO_ACCOUNT_SID + AUTH_TOKEN + FROM_NUMBER |
 | Slack alerts | SLACK_WEBHOOK_URL |
@@ -1345,11 +1921,260 @@ DOCKER_COMPOSE_ENABLED=true
 | File uploads (resumes, docs) | AWS_S3_* (LocalStack defaults work) |
 | Calendar sync (Google) | GOOGLE_CLIENT_ID + SECRET + Calendar API enabled |
 | Calendar sync (Outlook) | MICROSOFT_CLIENT_ID + SECRET + Calendars.ReadWrite permission |
-| Zoom meetings | ZOOM_API_KEY + ZOOM_API_SECRET |
+| Zoom meetings | ZOOM_ACCOUNT_ID + ZOOM_CLIENT_ID + ZOOM_CLIENT_SECRET |
 | Google Meet | GOOGLE_CLIENT_ID + Calendar API enabled |
 | E-signatures (DocuSign) | DOCUSIGN_ACCOUNT_ID + INTEGRATION_KEY |
 | E-signatures (HelloSign) | HELLOSIGN_API_KEY |
 | Code execution (sandboxed) | Docker socket access |
 | Distributed tracing | OTEL_* (defaults work with Docker Compose) |
 | Secret management | VAULT_TOKEN (dev-root-token for local) |
+| Elasticsearch (CQRS search) | ELASTICSEARCH_URI (Docker default: localhost:9200) |
+| Kafka UI | Docker Compose (no creds, port 8086) |
+| RedisInsight | Docker Compose (no creds, port 5540) |
+| Mailpit (dev email) | Docker Compose (no creds, port 8025) |
+| Grafana | Docker Compose (admin/admin, port 3001) |
+| Prometheus | Docker Compose (no creds, port 9091) |
+| Loki (logs) | Docker Compose (no creds, port 3100) |
 | SonarCloud analysis | SONAR_TOKEN |
+
+---
+
+## 14. New Services Added (v2.0.0)
+
+### Elasticsearch 8.13 (CQRS Full-Text Search)
+
+**What it does:** Powers the read model for CQRS — full-text search across interviews, candidates, and all entities.
+
+**Default local credentials:**
+```
+Host: localhost
+Port: 9200
+Cluster: interview-platform
+Security: disabled (dev)
+```
+
+**Environment variables:**
+```bash
+ELASTICSEARCH_URI=http://localhost:9200
+SEARCH_ENABLED=true    # Enable CQRS search module
+```
+
+**Health check:**
+```bash
+curl http://localhost:9200/_cluster/health
+curl http://localhost:9200/_cat/indices
+```
+
+---
+
+### Mailpit (Local Email Testing)
+
+**What it does:** Captures all outgoing emails in a web UI without sending them externally. Replaces MailHog.
+
+**Default local credentials:**
+```
+SMTP: localhost:1025 (no auth)
+Web UI: http://localhost:8025
+From Address: noreply@interview-platform.com
+```
+
+**Environment variables:**
+```bash
+MAIL_HOST=mailpit        # (in Docker) or localhost (local dev)
+MAIL_PORT=1025
+MAIL_USERNAME=noreply@interview-platform.com
+NOTIFICATIONS_ENABLED=true
+```
+
+---
+
+### Kafka UI (provectuslabs)
+
+**What it does:** Web dashboard for viewing Kafka topics, messages, consumer groups, and lag.
+
+**Default local credentials:**
+```
+Web UI: http://localhost:8086
+Cluster: interview-platform
+No authentication required (dev)
+```
+
+**Topics visible:**
+- `notification-events` — legacy notification channel
+- `interview-events` — interview lifecycle events
+- `notification-bus` — unified multi-channel notification bus
+- `search-index-events` — CQRS ES indexing triggers
+- `email-dead-letter-queue` — failed email retries
+
+---
+
+### RedisInsight
+
+**What it does:** Web dashboard for browsing Redis keys, monitoring rate limit counters, and cache inspection.
+
+**Default local credentials:**
+```
+Web UI: http://localhost:5540
+Redis Host: redis (Docker) / localhost (local)
+Redis Port: 6379
+No password (dev)
+```
+
+**What to look for:**
+- `ratelimit:*` — rate limiting counters with TTL
+- Cache entries managed by Spring Cache (`users::*`, `interviews::*`)
+
+---
+
+### Loki (Log Aggregation)
+
+**What it does:** Aggregates application logs exported from OTel Collector. Queryable via Grafana.
+
+**Default local credentials:**
+```
+API: http://localhost:3100
+No authentication required (dev)
+```
+
+**Environment variables:**
+```bash
+# No app-level config needed. OTel Collector pushes to Loki automatically.
+# Loki config is in otel-collector-config.yaml (loki exporter)
+```
+
+---
+
+### Grafana (Dashboards)
+
+**What it does:** Unified observability dashboard with pre-configured datasources for Prometheus, Loki, and Jaeger.
+
+**Default local credentials:**
+```
+Web UI: http://localhost:3001
+Username: admin
+Password: admin
+```
+
+**Pre-configured datasources:**
+- Prometheus (metrics) — `http://host.docker.internal:8889`
+- Loki (logs) — `http://host.docker.internal:3100`
+- Jaeger (traces) — `http://host.docker.internal:16686`
+
+---
+
+### Prometheus (Metrics)
+
+**What it does:** Scrapes and stores time-series metrics from the OTel Collector and Node Exporter.
+
+**Default local credentials:**
+```
+Web UI: http://localhost:9091
+No authentication required
+```
+
+**What it scrapes:**
+- OTel Collector metrics (port 8889) — JVM, HTTP, Kafka, Redis, DB metrics
+- Node Exporter (port 9100) — Host CPU, memory, disk, network
+
+---
+
+## 15. Docker Compose Service Ports — Complete Reference
+
+| Port | Service | Purpose |
+|------|---------|---------|
+| 1025 | Mailpit | SMTP (email capture) |
+| 2181 | Zookeeper | Kafka coordination |
+| 3001 | Grafana | Dashboards UI |
+| 3100 | Loki | Log aggregation API |
+| 4317 | OTel Collector | OTLP gRPC receiver |
+| 4318 | OTel Collector | OTLP HTTP receiver |
+| 4566 | LocalStack | S3-compatible API |
+| 5433 | PostgreSQL | Database (mapped from 5432) |
+| 5540 | RedisInsight | Redis browser UI |
+| 6379 | Redis | Cache + rate limiting |
+| 8025 | Mailpit | Email web UI |
+| 8080 | Application | Backend API |
+| 8086 | Kafka UI | Kafka dashboard |
+| 8200 | Vault | Secret management |
+| 8889 | OTel Collector | Prometheus metrics |
+| 9090 | Keycloak | Identity provider |
+| 9091 | Prometheus | Metrics UI |
+| 9092 | Kafka | Message broker |
+| 9100 | Node Exporter | Host metrics |
+| 9200 | Elasticsearch | Search engine |
+| 13133 | OTel Collector | Health check |
+| 14250 | Jaeger | gRPC (trace ingest) |
+| 16686 | Jaeger | Trace visualization UI |
+
+---
+
+## 16. Multi-Tenancy Credentials (Schema-Per-Tenant)
+
+When `SCHEMA_PER_TENANT=true`, each organization gets its own PostgreSQL schema. The connection uses:
+
+```bash
+# Schema routing
+SCHEMA_PER_TENANT=true
+
+# HikariCP (optimized for multi-tenant)
+HIKARI_MAX_POOL_SIZE=20
+HIKARI_MIN_IDLE=5
+# connection-init-sql resets search_path on pool return (prevents tenant data leaks)
+```
+
+**Important:** The `connection-init-sql: SET search_path TO public` in HikariCP config ensures connections returned to the pool don't retain a tenant's schema context.
+
+---
+
+## 17. External Services — Quick Credential Reference (All Integrations)
+
+A consolidated reference for every external service the platform integrates with and where to obtain credentials.
+
+| Service | Purpose | Credential Portal |
+|---------|---------|-------------------|
+| **OpenRouter** | AI services (25+ — summarizer, scoring, coaching, job descriptions, ML scoring, etc.) | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| **Google OAuth** | Social login, Calendar sync, Google Meet | [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) |
+| **GitHub OAuth** | Social login, candidate sourcing | [github.com/settings/developers](https://github.com/settings/developers) |
+| **Okta OIDC** | Primary enterprise SSO | [developer.okta.com](https://developer.okta.com) |
+| **Twilio** | SMS notifications (interview reminders, OTP) | [console.twilio.com](https://console.twilio.com) |
+| **Zoom** | Video meeting link generation | [marketplace.zoom.us](https://marketplace.zoom.us) |
+| **Stripe** | International payments (Cards, SEPA, Apple Pay) | [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys) |
+| **Razorpay** | Indian payments (UPI, Cards, NetBanking) | [dashboard.razorpay.com/app/keys](https://dashboard.razorpay.com/app/keys) |
+| **Firebase** | Push notifications (Android/iOS via FCM) | [console.firebase.google.com](https://console.firebase.google.com) |
+| **DocuSign** | E-signatures on offer letters | [developers.docusign.com](https://developers.docusign.com) |
+| **Gmail / SendGrid** | Email delivery (SMTP) | [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) or [sendgrid.com](https://sendgrid.com) |
+| **Slack** | Notifications, SlackBot integration | [api.slack.com/apps](https://api.slack.com/apps) |
+| **Checkr** | Background checks (post-offer) | [dashboard.checkr.com](https://dashboard.checkr.com) |
+| **Microsoft OAuth** | Social login, Outlook calendar sync | [portal.azure.com](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) |
+
+### OpenRouter (AI Gateway — replaces direct OpenAI)
+
+**Step-by-step setup:**
+
+1. Go to [OpenRouter](https://openrouter.ai/)
+2. Sign up or log in
+3. Go to **Settings > Keys** ([openrouter.ai/settings/keys](https://openrouter.ai/settings/keys))
+4. Click **Create Key**
+5. Name: `Interview Platform`
+6. Copy the key (starts with `sk-or-`)
+
+**Pricing:** Pay-per-use. Routes to cheapest available model. GPT-4o-mini via OpenRouter costs ~$0.15/1M input tokens.
+
+**Environment variables:**
+```bash
+OPENAI_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_MAX_TOKENS=1000
+OPENAI_TEMPERATURE=0.7
+AI_SCORING_ENABLED=true
+```
+
+**Services using this key (25+):** AI Coach, Talent Matching, Screening Bot, Question Generator, AI Scoring, AI Summarizer, AI Job Description, Interview Coaching, ML Scoring, Real-time Translation, Competitive Intel, Nurturing, Interview Intelligence, Proctoring analysis, and more.
+
+**Test:**
+```bash
+curl https://openrouter.ai/api/v1/models \
+  -H "Authorization: Bearer ${OPENAI_API_KEY}" | head -5
+# Should return available models list
+```

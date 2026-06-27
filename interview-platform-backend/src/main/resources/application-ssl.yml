@@ -1,0 +1,57 @@
+# SSL/HTTPS Profile - For local development with HTTPS
+# Activate with: --spring.profiles.active=dev,ssl
+# or set SPRING_PROFILES_ACTIVE=dev,ssl
+#
+# For production, HTTPS is terminated at the Istio Ingress Gateway.
+# This profile is ONLY for local testing of HTTPS-specific behavior
+# (secure cookies, HSTS, mixed-content debugging, OAuth2 redirect URIs).
+
+server:
+  port: ${SERVER_PORT:8443}
+  ssl:
+    enabled: true
+    key-store: classpath:certs/localhost.p12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: interview-platform
+    # TLS 1.2+ only (disable older insecure protocols)
+    enabled-protocols: TLSv1.2,TLSv1.3
+    # Strong cipher suites only
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+# Override OAuth2 redirect URIs to use HTTPS
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/google"
+          github:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/github"
+          microsoft:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/microsoft"
+          okta:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/okta"
+          keycloak:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/keycloak"
+
+# Frontend URL for password reset / email verification links
+app:
+  auth:
+    reset-password-base-url: ${FRONTEND_URL:https://localhost:3000}/reset-password
+    verification-base-url: ${FRONTEND_URL:https://localhost:3000}/verify-email
+  sso:
+    base-url: ${SSO_BASE_URL:https://localhost:8443}
+
+# CORS - allow HTTPS frontend
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://localhost:3000,https://localhost:5173}
+
+logging:
+  level:
+    org.apache.tomcat.util.net: INFO

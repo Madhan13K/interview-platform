@@ -12,7 +12,7 @@ A comprehensive AI-powered interview management platform with a Spring Boot back
 │                        http://localhost:3000                           │
 │                                                                       │
 │  ┌───────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────────┐  │
-│  │  38 Pages │  │24 Services│  │  Zustand │  │  UI Components    │  │
+│  │  96 Pages │  │70 Services│  │  Zustand │  │  UI Components    │  │
 │  │(App Router)│  │  (Axios) │  │  (Store) │  │(shadcn + custom)  │  │
 │  └───────────┘  └──────────┘  └──────────┘  └───────────────────┘  │
 │                                                                       │
@@ -129,6 +129,20 @@ cd interview-platform-backend && ./mvnw spring-boot:run
 cd interview-platform-frontend && npm run dev
 ```
 
+### Running with HTTPS (Local SSL)
+
+```bash
+# Terminal 1 - Backend with SSL profile (HTTPS on port 8443)
+cd interview-platform-backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,ssl
+
+# Terminal 2 - Frontend pointing to HTTPS backend
+cd interview-platform-frontend
+cp .env.ssl .env.local   # Sets NEXT_PUBLIC_API_URL=https://localhost:8443
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run dev
+```
+
+> **Note:** The backend uses a self-signed certificate for local dev. Set `NODE_TLS_REJECT_UNAUTHORIZED=0` so Next.js rewrites accept it. For production, HTTPS is handled by Istio/reverse proxy.
+
 ---
 
 ## Frontend Features
@@ -165,13 +179,13 @@ cd interview-platform-frontend && npm run dev
 
 ---
 
-## All Frontend Routes (38 pages)
+## All Frontend Routes (96 pages)
 
 ### Main Application
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with features & CTA |
-| `/login` | Email/password + OAuth (Google, GitHub) |
+| `/login` | Email/password + OAuth (Google, GitHub) + SSO (Okta/Keycloak) |
 | `/register` | Self-registration |
 | `/dashboard` | Role-based stats, quick actions, activity feed |
 | `/profile` | User details, roles, permissions, change password |
@@ -191,6 +205,9 @@ cd interview-platform-frontend && npm run dev
 | `/jobs` | Job positions with card grid, status management |
 | `/pipelines` | Kanban-style hiring pipeline with stage advancement |
 | `/templates` | Interview templates with question linking |
+| `/talent-pool` | Candidate relationship management for passive candidates |
+| `/sources` | Source effectiveness tracking |
+| `/tags` | Tags & labels management |
 
 ### Resources
 | Route | Description |
@@ -198,26 +215,40 @@ cd interview-platform-frontend && npm run dev
 | `/questions` | Question bank with categories, difficulty, search |
 | `/teams` | Team management with members and roles |
 | `/documents` | File manager with drag & drop upload |
+| `/scorecards` | Weighted evaluation scorecards |
+| `/reminders` | Interview reminders configuration |
 
-### Intelligence
+### Intelligence & AI
 | Route | Description |
 |-------|-------------|
-| `/ai` | AI assistant: PDF resume upload, question suggestions, summaries |
+| `/ai` | AI assistant: PDF resume upload, question suggestions, summaries (OpenRouter) |
+| `/copilot` | Real-time AI interview coaching dashboard |
+| `/transcription` | Live transcription session management |
+| `/video-analysis` | Video sentiment/engagement analysis |
 | `/reports` | Analytics with CSS charts, conversion funnel, PDF export |
+| `/report-builder` | Custom report templates with saved filters |
+| `/resume-ranking` | AI-powered candidate ranking by fit score |
+| `/engagement-scoring` | Candidate engagement metrics dashboard |
+| `/recording-highlights` | AI-generated key moments from recordings |
 | `/activity` | Activity timeline with filters |
 | `/notifications` | Real-time notification list |
+| `/search` | Global search across all entities |
+| `/workflows` | Configurable workflow engine |
 
 ### Settings
 | Route | Description |
 |-------|-------------|
 | `/organizations` | Multi-tenant organization management |
 | `/settings/mfa` | Two-factor auth: QR code, OTP input, backup codes |
+| `/settings/security` | Password change, session management |
 | `/settings/api-keys` | API key management with one-time reveal |
 | `/settings/webhooks` | Webhook CRUD with delivery history |
 | `/settings/gdpr` | Privacy consent, data export, erasure requests |
 | `/settings/audit` | Audit log viewer with filters |
 | `/settings/bulk` | Bulk schedule, invite, export operations |
 | `/settings/export` | Data export/import job management |
+| `/settings/billing` | Subscription plans, payment management |
+| `/settings/sso` | SSO/SAML configuration |
 
 ### Admin Panel
 | Route | Description |
@@ -473,6 +504,8 @@ Schedule Interview -> Generate Meeting Link -> Conduct Session
 Register/Login -> JWT Access Token + Refresh Token
       │
       ├── OAuth2 (Google/GitHub/Microsoft)
+      ├── SSO - Okta OIDC (Primary) -> auto-fallback to Keycloak OIDC
+      ├── SAML 2.0 (OneLogin/AzureAD/Generic - legacy enterprise)
       ├── Email Verification
       ├── MFA Setup (TOTP + Backup Codes)
       └── Password Reset via Email
@@ -515,6 +548,16 @@ GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Okta OIDC (Primary SSO)
+OKTA_CLIENT_ID=0oaxxxxxxxxx
+OKTA_CLIENT_SECRET=okta-client-secret
+OKTA_ISSUER_URI=https://dev-xxxxxxxx.okta.com/oauth2/default
+
+# Keycloak OIDC (Fallback SSO - self-hosted via Docker)
+KEYCLOAK_CLIENT_ID=interview-platform
+KEYCLOAK_CLIENT_SECRET=interview-platform-secret
+KEYCLOAK_ISSUER_URI=http://localhost:9090/realms/interview-platform
 
 # Frontend URL (for OAuth redirects)
 FRONTEND_URL=http://localhost:3000
@@ -716,7 +759,7 @@ Private - All rights reserved.
 |------|---------|
 | `interview-platform-backend/Dockerfile` | Multi-stage JDK 21 build -> JRE 21 runtime |
 | `interview-platform-frontend/Dockerfile` | Multi-stage Node 18 build -> standalone runtime |
-| `interview-platform-backend/docker-compose.yml` | PostgreSQL + Redis + LocalStack (dev) |
+| `interview-platform-backend/docker-compose.yml` | PostgreSQL + Redis + Kafka + LocalStack + Keycloak + Vault + OTel (dev) |
 | `monitoring/docker-compose.monitoring.yml` | Prometheus + Grafana + Node Exporter |
 
 ### Kubernetes
@@ -799,15 +842,15 @@ kubectl apply -f k8s/deployment.yml
 
 | Metric | Count |
 |--------|-------|
-| Frontend Pages | 61 |
-| Backend REST Endpoints | 230+ |
-| Backend Controllers | 42 |
-| Frontend Service Files | 24 |
+| Frontend Pages | 96 |
+| Backend REST Endpoints | 550+ |
+| Backend Controllers | 120 |
+| Frontend Service Files | 70 |
 | UI Components | 20+ |
-| Database Tables | 50+ |
-| Flyway Migrations | 18 |
-| Test Files | 34 |
-| DevOps Files | 6 |
+| Database Entities | 134 |
+| Flyway Migrations | 43 |
+| Test Files | 67 |
+| DevOps Files | 15 |
 | Docker Compose Files | 3 |
 
 ---

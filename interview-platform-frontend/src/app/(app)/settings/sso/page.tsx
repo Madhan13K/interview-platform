@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ssoService, SsoConfiguration, CreateSsoConfigRequest } from "@/services/sso.service";
+import { ssoService, SsoConfiguration, CreateSsoConfigRequest, SsoProviderType } from "@/services/sso.service";
 import { useActionFeedback } from "@/hooks/use-action-feedback";
 
-type ProviderType = "OKTA" | "ONELOGIN" | "AZURE_AD" | "CUSTOM";
+type ProviderType = SsoProviderType;
 
-const providerLabels: Record<ProviderType, string> = {
-  OKTA: "Okta",
-  ONELOGIN: "OneLogin",
-  AZURE_AD: "Azure AD",
-  CUSTOM: "Custom SAML",
+const providerLabels: Record<string, string> = {
+  OKTA: "Okta (OIDC)",
+  KEYCLOAK: "Keycloak (OIDC)",
+  ONELOGIN: "OneLogin (SAML)",
+  AZURE_AD: "Azure AD (SAML)",
+  GENERIC_SAML: "Custom SAML",
 };
 
 export default function SsoSettingsPage() {
@@ -23,11 +24,12 @@ export default function SsoSettingsPage() {
 
   const [formData, setFormData] = useState<CreateSsoConfigRequest>({
     tenantId: "default",
+    displayName: "",
     providerType: "OKTA",
-    entityId: "",
+    idpEntityId: "",
+    idpSsoUrl: "",
+    idpCertificate: "",
     metadataUrl: "",
-    certificate: "",
-    enabled: false,
   });
 
   const fetchConfigs = useCallback(async () => {
@@ -64,11 +66,11 @@ export default function SsoSettingsPage() {
     await withFeedback(
       async () => {
         await ssoService.update(editingConfig.id, {
-          providerType: formData.providerType,
-          entityId: formData.entityId,
+          displayName: formData.displayName,
+          idpEntityId: formData.idpEntityId,
+          idpSsoUrl: formData.idpSsoUrl,
+          idpCertificate: formData.idpCertificate,
           metadataUrl: formData.metadataUrl,
-          certificate: formData.certificate,
-          enabled: formData.enabled,
         });
         setEditingConfig(null);
         resetForm();
@@ -81,7 +83,7 @@ export default function SsoSettingsPage() {
   const handleToggle = async (config: SsoConfiguration) => {
     await withFeedback(
       async () => {
-        await ssoService.toggle(config.id);
+        await ssoService.toggle(config.id, !config.enabled);
         await fetchConfigs();
       },
       { successTitle: `SSO ${config.enabled ? "disabled" : "enabled"} successfully` }
@@ -103,26 +105,28 @@ export default function SsoSettingsPage() {
     setEditingConfig(config);
     setFormData({
       tenantId: config.tenantId,
+      displayName: config.displayName,
       providerType: config.providerType,
-      entityId: config.entityId,
+      idpEntityId: config.idpEntityId,
+      idpSsoUrl: config.idpSsoUrl || "",
+      idpCertificate: "",
       metadataUrl: config.metadataUrl || "",
-      certificate: config.certificate || "",
-      enabled: config.enabled,
     });
   };
 
   const resetForm = () => {
     setFormData({
       tenantId: "default",
+      displayName: "",
       providerType: "OKTA",
-      entityId: "",
+      idpEntityId: "",
+      idpSsoUrl: "",
+      idpCertificate: "",
       metadataUrl: "",
-      certificate: "",
-      enabled: false,
     });
   };
 
-  const getProviderIcon = (type: ProviderType) => {
+  const getProviderIcon = (type: string) => {
     switch (type) {
       case "OKTA":
         return (
@@ -142,7 +146,14 @@ export default function SsoSettingsPage() {
             <span className="text-sky-600 dark:text-sky-400 font-bold text-sm">AD</span>
           </div>
         );
-      case "CUSTOM":
+      case "KEYCLOAK":
+        return (
+          <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+            <span className="text-green-600 dark:text-green-400 font-bold text-sm">KC</span>
+          </div>
+        );
+      case "GENERIC_SAML":
+      default:
         return (
           <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
             <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">SP</span>
@@ -203,27 +214,52 @@ export default function SsoSettingsPage() {
                   onChange={(e) => setFormData({ ...formData, providerType: e.target.value as ProviderType })}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 >
-                  <option value="OKTA">Okta</option>
-                  <option value="ONELOGIN">OneLogin</option>
-                  <option value="AZURE_AD">Azure AD</option>
-                  <option value="CUSTOM">Custom SAML</option>
+                  <option value="OKTA">Okta (OIDC)</option>
+                  <option value="KEYCLOAK">Keycloak (OIDC)</option>
+                  <option value="ONELOGIN">OneLogin (SAML)</option>
+                  <option value="AZURE_AD">Azure AD (SAML)</option>
+                  <option value="GENERIC_SAML">Custom SAML</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Entity ID (Issuer) *
+                  Display Name *
                 </label>
                 <input
                   type="text"
-                  value={formData.entityId}
-                  onChange={(e) => setFormData({ ...formData, entityId: e.target.value })}
+                  value={formData.displayName}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                  placeholder="e.g. Corporate Okta SSO"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  IdP Entity ID (Issuer) *
+                </label>
+                <input
+                  type="text"
+                  value={formData.idpEntityId}
+                  onChange={(e) => setFormData({ ...formData, idpEntityId: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   placeholder="https://your-idp.com/entity-id"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  IdP SSO URL *
+                </label>
+                <input
+                  type="url"
+                  value={formData.idpSsoUrl}
+                  onChange={(e) => setFormData({ ...formData, idpSsoUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                  placeholder="https://your-idp.com/sso/saml"
+                />
+              </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Metadata URL
+                  Metadata URL (optional)
                 </label>
                 <input
                   type="url"
@@ -235,26 +271,15 @@ export default function SsoSettingsPage() {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  X.509 Certificate
+                  X.509 Certificate *
                 </label>
                 <textarea
-                  value={formData.certificate}
-                  onChange={(e) => setFormData({ ...formData, certificate: e.target.value })}
+                  value={formData.idpCertificate}
+                  onChange={(e) => setFormData({ ...formData, idpCertificate: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-mono"
                   rows={4}
                   placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
                 />
-              </div>
-              <div className="md:col-span-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.enabled}
-                    onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 rounded border-slate-300"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-slate-300">Enable immediately</span>
-                </label>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
@@ -270,7 +295,7 @@ export default function SsoSettingsPage() {
               </button>
               <button
                 onClick={editingConfig ? handleUpdate : handleCreate}
-                disabled={!formData.entityId}
+                disabled={!formData.idpEntityId || !formData.displayName}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingConfig ? "Update Configuration" : "Create Configuration"}
@@ -311,10 +336,10 @@ export default function SsoSettingsPage() {
                     {getProviderIcon(config.providerType)}
                     <div>
                       <h3 className="font-medium text-slate-900 dark:text-white">
-                        {providerLabels[config.providerType]}
+                        {config.displayName || providerLabels[config.providerType] || config.providerType}
                       </h3>
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        Entity ID: {config.entityId}
+                        Entity ID: {config.idpEntityId}
                       </p>
                       {config.metadataUrl && (
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-md">

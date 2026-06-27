@@ -1,38 +1,74 @@
 import api from "@/lib/axios";
-import { SSO_ENDPOINTS } from "@/lib/api-endpoints";
+import { SSO_ENDPOINTS, SSO_URLS } from "@/lib/api-endpoints";
+
+export type SsoProviderType = "OKTA" | "KEYCLOAK" | "ONELOGIN" | "AZURE_AD" | "GENERIC_SAML";
 
 export interface SsoConfiguration {
   id: string;
   tenantId: string;
-  providerType: "OKTA" | "ONELOGIN" | "AZURE_AD" | "CUSTOM";
-  entityId: string;
+  registrationId: string;
+  displayName: string;
+  providerType: SsoProviderType;
+  idpEntityId: string;
+  idpSsoUrl: string;
+  idpSloUrl?: string;
   metadataUrl?: string;
-  certificate?: string;
+  spEntityId: string;
+  acsUrl: string;
+  nameIdFormat?: string;
+  signRequests: boolean;
   enabled: boolean;
+  autoProvisionUsers: boolean;
+  defaultRole: string;
+  emailAttribute?: string;
+  firstNameAttribute?: string;
+  lastNameAttribute?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  spMetadataUrl: string;
+  loginUrl: string;
 }
 
 export interface CreateSsoConfigRequest {
   tenantId: string;
-  providerType: "OKTA" | "ONELOGIN" | "AZURE_AD" | "CUSTOM";
-  entityId: string;
+  displayName: string;
+  providerType: SsoProviderType;
+  idpEntityId: string;
+  idpSsoUrl: string;
+  idpSloUrl?: string;
+  idpCertificate: string;
   metadataUrl?: string;
-  certificate?: string;
-  enabled?: boolean;
+  spEntityId?: string;
+  nameIdFormat?: string;
+  signRequests?: boolean;
+  autoProvisionUsers?: boolean;
+  defaultRole?: string;
+  emailAttribute?: string;
+  firstNameAttribute?: string;
+  lastNameAttribute?: string;
 }
 
 export interface UpdateSsoConfigRequest {
-  providerType?: "OKTA" | "ONELOGIN" | "AZURE_AD" | "CUSTOM";
-  entityId?: string;
+  displayName?: string;
+  idpEntityId?: string;
+  idpSsoUrl?: string;
+  idpSloUrl?: string;
+  idpCertificate?: string;
   metadataUrl?: string;
-  certificate?: string;
-  enabled?: boolean;
+  spEntityId?: string;
+  nameIdFormat?: string;
+  signRequests?: boolean;
+  autoProvisionUsers?: boolean;
+  defaultRole?: string;
+  emailAttribute?: string;
+  firstNameAttribute?: string;
+  lastNameAttribute?: string;
 }
 
-export interface SsoLoginUrl {
-  providerType: string;
-  loginUrl: string;
+export interface SsoProviderInfo {
+  primary: { provider: string; name: string; loginUrl: string };
+  fallback?: { provider: string; name: string; loginUrl: string };
+  note: string;
 }
 
 export const ssoService = {
@@ -56,8 +92,8 @@ export const ssoService = {
     return res.data;
   },
 
-  toggle: async (configId: string): Promise<SsoConfiguration> => {
-    const res = await api.patch(SSO_ENDPOINTS.toggle(configId));
+  toggle: async (configId: string, enabled: boolean): Promise<SsoConfiguration> => {
+    const res = await api.patch(`${SSO_ENDPOINTS.toggle(configId)}?enabled=${enabled}`);
     return res.data;
   },
 
@@ -65,8 +101,24 @@ export const ssoService = {
     await api.delete(SSO_ENDPOINTS.delete(configId));
   },
 
-  getLoginUrls: async (tenantId: string): Promise<SsoLoginUrl[]> => {
+  getLoginUrls: async (tenantId: string): Promise<SsoConfiguration[]> => {
     const res = await api.get(SSO_ENDPOINTS.getLoginUrls(tenantId));
     return res.data;
+  },
+
+  /** Get SSO provider info (Okta primary + Keycloak fallback) */
+  getProviders: async (): Promise<SsoProviderInfo> => {
+    const res = await api.get(SSO_ENDPOINTS.providers);
+    return res.data;
+  },
+
+  /** Initiate SSO login (Okta OIDC primary - auto-fallback to Keycloak on failure) */
+  loginWithSso: (): void => {
+    window.location.href = SSO_URLS.login;
+  },
+
+  /** Manually initiate Keycloak fallback login */
+  loginWithKeycloak: (): void => {
+    window.location.href = SSO_URLS.fallback;
   },
 };

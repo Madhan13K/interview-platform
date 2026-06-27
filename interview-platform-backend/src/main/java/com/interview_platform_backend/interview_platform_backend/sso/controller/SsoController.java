@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/sso")
-@Tag(name = "SSO/SAML", description = "Enterprise SSO/SAML configuration management")
+@Tag(name = "SSO", description = "Enterprise SSO configuration management. Okta/Keycloak use OpenID Connect; OneLogin/AzureAD/Generic use SAML 2.0.")
 public class SsoController {
 
     private final SsoService ssoService;

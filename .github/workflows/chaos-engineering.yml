@@ -1,0 +1,172 @@
+name: Chaos Engineering Tests
+
+on:
+  schedule:
+    - cron: '0 3 * * 5' # Friday 3AM UTC (low-traffic)
+  workflow_dispatch:
+    inputs:
+      experiment:
+        description: 'Chaos experiment to run'
+        required: true
+        type: choice
+        options:
+          - pod-kill
+          - network-latency
+          - cpu-stress
+          - memory-stress
+          - disk-fill
+          - all
+
+env:
+  NAMESPACE: interview-platform-staging
+
+jobs:
+  chaos-pod-kill:
+    name: Pod Kill Experiment
+    runs-on: ubuntu-latest
+    if: inputs.experiment == 'pod-kill' || inputs.experiment == 'all' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+
+      - name: Apply Chaos - Pod Kill
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: chaos-mesh.org/v1alpha1
+          kind: PodChaos
+          metadata:
+            name: pod-kill-test
+            namespace: $NAMESPACE
+          spec:
+            action: pod-kill
+            mode: one
+            selector:
+              namespaces: [$NAMESPACE]
+              labelSelectors:
+                app: interview-platform
+            duration: "30s"
+            scheduler:
+              cron: "@every 60s"
+          EOF
+
+      - name: Wait and Verify Recovery
+        run: |
+          echo "Waiting 90s for pod kill + recovery..."
+          sleep 90
+          READY=$(kubectl get deployment interview-platform -n $NAMESPACE -o jsonpath='{.status.readyReplicas}')
+          DESIRED=$(kubectl get deployment interview-platform -n $NAMESPACE -o jsonpath='{.spec.replicas}')
+          echo "Ready: $READY / Desired: $DESIRED"
+          if [ "$READY" -lt "$DESIRED" ]; then
+            echo "::error::Service did not recover from pod kill!"
+            exit 1
+          fi
+          echo "Service recovered successfully from pod kill"
+
+      - name: Cleanup
+        if: always()
+        run: kubectl delete podchaos pod-kill-test -n $NAMESPACE --ignore-not-found
+
+  chaos-network-latency:
+    name: Network Latency Experiment
+    runs-on: ubuntu-latest
+    if: inputs.experiment == 'network-latency' || inputs.experiment == 'all' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+
+      - name: Apply Chaos - 500ms Network Latency
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: chaos-mesh.org/v1alpha1
+          kind: NetworkChaos
+          metadata:
+            name: network-latency-test
+            namespace: $NAMESPACE
+          spec:
+            action: delay
+            mode: all
+            selector:
+              namespaces: [$NAMESPACE]
+              labelSelectors:
+                app: interview-platform
+            delay:
+              latency: "500ms"
+              correlation: "50"
+              jitter: "100ms"
+            duration: "120s"
+          EOF
+
+      - name: Measure Impact
+        run: |
+          echo "Measuring API response time under latency injection..."
+          sleep 10
+          for i in $(seq 1 5); do
+            RESPONSE_TIME=$(curl -o /dev/null -sf -w "%{time_total}" http://interview-platform-staging.example.com/actuator/health || echo "999")
+            echo "Request $i: ${RESPONSE_TIME}s"
+            sleep 5
+          done
+
+      - name: Cleanup
+        if: always()
+        run: kubectl delete networkchaos network-latency-test -n $NAMESPACE --ignore-not-found
+
+  chaos-cpu-stress:
+    name: CPU Stress Experiment
+    runs-on: ubuntu-latest
+    if: inputs.experiment == 'cpu-stress' || inputs.experiment == 'all' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set Kubeconfig
+        run: echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+
+      - name: Apply Chaos - CPU Stress (80%)
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: chaos-mesh.org/v1alpha1
+          kind: StressChaos
+          metadata:
+            name: cpu-stress-test
+            namespace: $NAMESPACE
+          spec:
+            mode: one
+            selector:
+              namespaces: [$NAMESPACE]
+              labelSelectors:
+                app: interview-platform
+            stressors:
+              cpu:
+                workers: 2
+                load: 80
+            duration: "60s"
+          EOF
+
+      - name: Monitor During Stress
+        run: |
+          echo "Monitoring service during CPU stress..."
+          sleep 10
+          for i in $(seq 1 5); do
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://interview-platform-staging.example.com/actuator/health || echo "000")
+            echo "Health check $i: HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "::warning::Service degraded under CPU stress (HTTP $HTTP_CODE)"
+            fi
+            sleep 10
+          done
+
+      - name: Cleanup
+        if: always()
+        run: kubectl delete stresschaos cpu-stress-test -n $NAMESPACE --ignore-not-found

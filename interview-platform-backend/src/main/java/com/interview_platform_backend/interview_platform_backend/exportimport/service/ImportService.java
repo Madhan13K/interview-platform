@@ -12,6 +12,7 @@ import com.interview_platform_backend.interview_platform_backend.exportimport.en
 import com.interview_platform_backend.interview_platform_backend.exportimport.repository.ExportImportJobRepository;
 import com.interview_platform_backend.interview_platform_backend.user.entity.User;
 import com.interview_platform_backend.interview_platform_backend.user.repository.UserRepository;
+import com.interview_platform_backend.interview_platform_backend.tenant.repository.OrganizationMemberRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -46,15 +47,18 @@ public class ImportService {
     private final ExportImportJobRepository jobRepository;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
     private final S3StorageService s3StorageService;
 
     public ImportService(ExportImportJobRepository jobRepository,
                          DocumentRepository documentRepository,
                          UserRepository userRepository,
+                         OrganizationMemberRepository organizationMemberRepository,
                          S3StorageService s3StorageService) {
         this.jobRepository = jobRepository;
         this.documentRepository = documentRepository;
         this.userRepository = userRepository;
+        this.organizationMemberRepository = organizationMemberRepository;
         this.s3StorageService = s3StorageService;
     }
 
@@ -68,8 +72,14 @@ public class ImportService {
         // Determine format from file extension
         JobFormat format = determineFormat(document.getOriginalFileName());
 
+        UUID organizationId = organizationMemberRepository.findByUserId(userId).stream()
+                .findFirst()
+                .map(member -> member.getOrganization().getId())
+                .orElseThrow(() -> new BadRequestException(
+                        "User " + userId + " does not belong to any organization. Cannot perform import."));
+
         ExportImportJob job = ExportImportJob.builder()
-                .organizationId(userId) // Using userId as org placeholder
+                .organizationId(organizationId)
                 .user(user)
                 .type(JobType.IMPORT)
                 .format(format)

@@ -43,6 +43,22 @@ export const OAUTH_URLS = {
   google: `${API_BASE}/oauth2/authorization/google`,
   github: `${API_BASE}/oauth2/authorization/github`,
   microsoft: `${API_BASE}/oauth2/authorization/microsoft`,
+  okta: `${API_BASE}/oauth2/authorization/okta`,
+  keycloak: `${API_BASE}/oauth2/authorization/keycloak`,
+} as const;
+
+// ─── SSO (OpenID Connect - Okta primary, Keycloak fallback) ─────────────────
+export const SSO_URLS = {
+  /** Primary SSO login via Okta OIDC */
+  login: `${API_BASE}/oauth2/authorization/okta`,
+  /** Fallback SSO login via Keycloak OIDC (auto-triggered if Okta fails) */
+  fallback: `${API_BASE}/oauth2/authorization/keycloak`,
+  /** Get available SSO providers */
+  providers: "/api/v1/auth/oauth2/sso",
+  /** Discover SSO provider by email domain */
+  discover: "/api/v1/auth/sso/discover",
+  /** Discover SSO provider by org slug (subdomain) */
+  discoverByOrg: "/api/v1/auth/sso/discover/org",
 } as const;
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -477,7 +493,8 @@ export const SEARCH_ENDPOINTS = {
   search: "/api/v1/search",
 } as const;
 
-// ─── SSO/SAML ────────────────────────────────────────────────────────────────
+// ─── SSO (Enterprise Identity Providers) ─────────────────────────────────────
+// Okta & Keycloak use OpenID Connect; OneLogin/AzureAD/Generic use SAML 2.0
 export const SSO_ENDPOINTS = {
   create: "/api/v1/sso",
   update: (configId: string) => `/api/v1/sso/${configId}`,
@@ -486,6 +503,8 @@ export const SSO_ENDPOINTS = {
   toggle: (configId: string) => `/api/v1/sso/${configId}/toggle`,
   delete: (configId: string) => `/api/v1/sso/${configId}`,
   getLoginUrls: (tenantId: string) => `/api/v1/sso/tenant/${tenantId}/login-urls`,
+  /** Get SSO provider info (primary=Okta, fallback=Keycloak) */
+  providers: "/api/v1/auth/oauth2/sso",
 } as const;
 
 // ─── Account Security ────────────────────────────────────────────────────────
@@ -625,4 +644,58 @@ export const IP_WHITELIST_ENDPOINTS = {
   addEntry: (orgId: string) => `/api/v1/organizations/${orgId}/ip-whitelist`,
   removeEntry: (orgId: string, entryId: string) => `/api/v1/organizations/${orgId}/ip-whitelist/${entryId}`,
   checkIp: (orgId: string) => `/api/v1/organizations/${orgId}/ip-whitelist/check`,
+} as const;
+
+// ─── Async Video Interviews ─────────────────────────────────────────────────
+export const ASYNC_INTERVIEW_ENDPOINTS = {
+  create: "/api/v1/async-interviews",
+  list: "/api/v1/async-interviews",
+  getById: (id: string) => `/api/v1/async-interviews/${id}`,
+  publish: (id: string) => `/api/v1/async-interviews/${id}/publish`,
+  invite: (id: string) => `/api/v1/async-interviews/${id}/invite`,
+  close: (id: string) => `/api/v1/async-interviews/${id}/close`,
+  respond: (token: string) => `/api/v1/async-interviews/respond/${token}`,
+  startRespond: (token: string) => `/api/v1/async-interviews/respond/${token}/start`,
+  submitResponse: (token: string) => `/api/v1/async-interviews/respond/${token}/submit`,
+  completeRespond: (token: string) => `/api/v1/async-interviews/respond/${token}/complete`,
+  getResponses: (id: string) => `/api/v1/async-interviews/${id}/responses`,
+  submitReview: (invId: string) => `/api/v1/async-interviews/responses/${invId}/review`,
+} as const;
+
+// ─── Custom Fields ──────────────────────────────────────────────────────────
+export const CUSTOM_FIELD_ENDPOINTS = {
+  definitions: "/api/v1/custom-fields/definitions",
+  getDefinition: (id: string) => `/api/v1/custom-fields/definitions/${id}`,
+  values: "/api/v1/custom-fields/values",
+  getValues: (entityId: string) => `/api/v1/custom-fields/values/${entityId}`,
+  deleteValue: (defId: string, entityId: string) => `/api/v1/custom-fields/values/${defId}/${entityId}`,
+} as const;
+
+// ─── Hiring Analytics (ML) ──────────────────────────────────────────────────
+export const HIRING_ANALYTICS_ENDPOINTS = {
+  funnel: "/api/v1/analytics/funnel",
+  pipelineFunnel: (id: string) => `/api/v1/analytics/funnel/${id}`,
+  conversionRates: "/api/v1/analytics/conversion-rates",
+  dropouts: "/api/v1/analytics/dropouts",
+  timeToHire: "/api/v1/analytics/time-to-hire",
+  compute: "/api/v1/analytics/compute",
+  predict: (candidateId: string) => `/api/v1/analytics/predict/${candidateId}`,
+  interviewerMatch: "/api/v1/analytics/predict/interviewer-match",
+  modelMetrics: "/api/v1/analytics/model/metrics",
+} as const;
+
+// ─── Report Builder ─────────────────────────────────────────────────────────
+export const REPORT_BUILDER_ENDPOINTS = {
+  templates: "/api/v1/reports/templates",
+  getTemplate: (id: string) => `/api/v1/reports/templates/${id}`,
+  generate: "/api/v1/reports/generate",
+  generated: "/api/v1/reports/generated",
+  schedules: "/api/v1/reports/schedules",
+} as const;
+
+// ─── Tenant / Multi-tenancy ─────────────────────────────────────────────────
+export const TENANT_ENDPOINTS = {
+  provision: (orgId: string) => `/api/v1/organizations/${orgId}/provision`,
+  suspend: (orgId: string) => `/api/v1/organizations/${orgId}/suspend`,
+  reactivate: (orgId: string) => `/api/v1/organizations/${orgId}/reactivate`,
 } as const;

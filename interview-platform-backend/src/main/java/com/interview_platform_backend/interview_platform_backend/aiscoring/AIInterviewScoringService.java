@@ -26,6 +26,12 @@ public class AIInterviewScoringService {
     @Value("${app.ai.openai.api-key:}")
     private String openAiApiKey;
 
+    @Value("${app.ai.openai.api-url:https://openrouter.ai/api/v1/chat/completions}")
+    private String apiUrl;
+
+    @Value("${app.ai.openai.model:openai/gpt-4o-mini}")
+    private String model;
+
     @Value("${app.ai.scoring.enabled:false}")
     private boolean scoringEnabled;
 
@@ -60,7 +66,7 @@ public class AIInterviewScoringService {
                 """, role, interviewType, transcript.substring(0, Math.min(transcript.length(), 3000)));
 
             var requestBody = Map.of(
-                    "model", "gpt-4o-mini",
+                    "model", model,
                     "messages", java.util.List.of(
                             Map.of("role", "system", "content", "You are an expert interview evaluator. Provide objective, data-driven scoring."),
                             Map.of("role", "user", "content", prompt)
@@ -70,9 +76,11 @@ public class AIInterviewScoringService {
             );
 
             var response = restClient.post()
-                    .uri("https://api.openai.com/v1/chat/completions")
+                    .uri(apiUrl)
                     .header("Authorization", "Bearer " + openAiApiKey)
                     .header("Content-Type", "application/json")
+                    .header("HTTP-Referer", "https://interview-platform.app")
+                    .header("X-Title", "Interview Platform AI")
                     .body(requestBody)
                     .retrieve()
                     .body(Map.class);

@@ -46,6 +46,10 @@ exporters:
     endpoint: 0.0.0.0:8889
     namespace: interview_platform
 
+  # Loki exporter sends logs to Loki
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
 extensions:
   # Health check extension (used by Docker healthcheck)
   health_check:
@@ -70,8 +74,8 @@ service:
       processors: [memory_limiter, batch]
       exporters: [prometheus, debug]
 
-    # Logs pipeline: receive via OTLP -> batch -> export to debug
+    # Logs pipeline: receive via OTLP -> batch -> export to Loki + debug
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug]
+      exporters: [loki, debug]

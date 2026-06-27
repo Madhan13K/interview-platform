@@ -136,6 +136,26 @@ public class S3StorageService {
     }
 
     /**
+     * Upload raw bytes to S3 with a specified content type.
+     * Used for programmatic file generation (e.g., reports).
+     */
+    public String uploadFile(String s3Key, byte[] data, String contentType) {
+        ensureConfigured();
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(s3Key)
+                .contentType(contentType)
+                .contentLength((long) data.length)
+                .build();
+
+        s3Client.putObject(putObjectRequest, RequestBody.fromBytes(data));
+
+        String s3Url = generateS3Url(s3Key);
+        log.info("File uploaded to S3: {}", s3Url);
+        return s3Url;
+    }
+
+    /**
      * Delete a file from S3
      */
     public void deleteFile(String s3Key) {

@@ -20,4 +20,6 @@ public interface InterviewFeedbackRepository extends JpaRepository<InterviewFeed
     boolean existsByInterviewAndInterviewer(Interview interview, User interviewer);
 
     List<InterviewFeedBack> findByInterviewer(User interviewer);
+
+    List<InterviewFeedBack> findByInterviewId(UUID interviewId);
 }

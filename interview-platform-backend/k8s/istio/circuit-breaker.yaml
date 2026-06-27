@@ -1,0 +1,21 @@
+# Circuit breaker for external services (payment gateways, AI APIs)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: external-services-cb
+  namespace: interview-platform
+spec:
+  host: "*.external"
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 25
+        http2MaxRequests: 50
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 10s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 100

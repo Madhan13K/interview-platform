@@ -55,6 +55,20 @@ spring:
             redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/microsoft"
             client-name: Microsoft
             authorization-grant-type: authorization_code
+          okta:
+            client-id: ${OKTA_CLIENT_ID:0oa14fz2oamAXh9h1698}
+            client-secret: ${OKTA_CLIENT_SECRET:qi0rnLoP4ROvrCtiJCS6gJiq-BKFTL518hAuCzww41BXmwoNmBdFbcbeCAx6voHS}
+            scope: [openid, profile, email]
+            redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/okta"
+            client-name: Okta
+            authorization-grant-type: authorization_code
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID:interview-platform}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:interview-platform-secret}
+            scope: [openid, profile, email]
+            redirect-uri: "${OAUTH2_BASE_URL:http://localhost:8080}/login/oauth2/code/keycloak"
+            client-name: Keycloak (Fallback)
+            authorization-grant-type: authorization_code
         provider:
           google:
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
@@ -71,6 +85,18 @@ spring:
             token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
             user-info-uri: https://graph.microsoft.com/oidc/userinfo
             user-name-attribute: email
+          okta:
+            authorization-uri: ${OKTA_AUTH_URL:https://integrator-8402944.okta.com/oauth2/default/v1/authorize}
+            token-uri: ${OKTA_TOKEN_URL:https://integrator-8402944.okta.com/oauth2/default/v1/token}
+            user-info-uri: ${OKTA_USERINFO_URL:https://integrator-8402944.okta.com/oauth2/default/v1/userinfo}
+            jwk-set-uri: ${OKTA_JWKS_URL:https://integrator-8402944.okta.com/oauth2/default/v1/keys}
+            user-name-attribute: email
+          keycloak:
+            authorization-uri: ${KEYCLOAK_AUTH_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_TOKEN_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/token}
+            user-info-uri: ${KEYCLOAK_USERINFO_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/userinfo}
+            jwk-set-uri: ${KEYCLOAK_JWKS_URL:http://localhost:9090/realms/interview-platform/protocol/openid-connect/certs}
+            user-name-attribute: preferred_username
 
   # Vault (optional for dev - uses dev token from docker compose)
   cloud:
@@ -205,13 +231,22 @@ app:
   meeting:
     zoom:
       enabled: ${ZOOM_ENABLED:true}
-      api-key: ${ZOOM_API_KEY:}
-      api-secret: ${ZOOM_API_SECRET:}
+      account-id: ${ZOOM_ACCOUNT_ID:}
+      client-id: ${ZOOM_CLIENT_ID:}
+      client-secret: ${ZOOM_CLIENT_SECRET:}
     google:
       enabled: ${GOOGLE_MEET_ENABLED:true}
       client-id: ${GOOGLE_MEET_CLIENT_ID:}
   sso:
     base-url: ${SSO_BASE_URL:http://localhost:8080}
+    keycloak:
+      enabled: ${KEYCLOAK_SSO_ENABLED:true}
+      server-url: ${KEYCLOAK_SERVER_URL:http://localhost:9090}
+      realm: ${KEYCLOAK_REALM:interview-platform}
+      client-id: ${KEYCLOAK_CLIENT_ID:interview-platform}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:interview-platform-secret}
+      admin-username: ${KEYCLOAK_ADMIN:admin}
+      admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
   calendar-sync:
     enabled: ${CALENDAR_SYNC_ENABLED:true}
     sync-interval-minutes: ${CALENDAR_SYNC_INTERVAL:15}

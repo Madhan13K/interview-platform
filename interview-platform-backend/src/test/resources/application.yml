@@ -3,6 +3,23 @@ spring:
   application:
     name: interview-platform-backend
 
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultReactiveAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultReactiveHealthIndicatorConfiguration
+
+  cloud:
+    vault:
+      enabled: false
+      token: test-token-disabled
+      reactive:
+        enabled: false
+      health:
+        enabled: false
+
   datasource:
     url: jdbc:postgresql://localhost:5433/interview_platform
     username: admin
@@ -139,13 +156,19 @@ app:
   sms:
     enabled: false
     provider: log
+  search:
+    enabled: false
+  multitenancy:
+    schema-per-tenant: false
   auth:
     reset-password-base-url: http://localhost:5173/reset-password
     verification-base-url: http://localhost:5173/verify-email
   meeting:
     zoom:
-      api-key:
-      api-secret:
+      enabled: false
+      account-id:
+      client-id:
+      client-secret:
     google:
       client-id:
 

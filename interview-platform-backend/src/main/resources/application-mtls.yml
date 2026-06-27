@@ -1,0 +1,102 @@
+# mTLS (Mutual TLS) Profile - Requires client certificate authentication
+# Activate with: --spring.profiles.active=dev,mtls
+# or set SPRING_PROFILES_ACTIVE=dev,mtls
+#
+# This profile enables mutual TLS where BOTH the server and client present certificates.
+# Use cases:
+# - Service-to-service authentication (microservices, external partners)
+# - Zero-trust architecture enforcement
+# - API gateway to backend service communication
+# - Compliance requirements (PCI-DSS, SOC2, financial services)
+#
+# For production:
+# - Use certificates signed by your organization's CA (not self-signed)
+# - Store keystores/truststores in HashiCorp Vault or AWS Secrets Manager
+# - Rotate certificates before expiry (automate with cert-manager in K8s)
+# - Enable OCSP stapling or CRL checking
+
+server:
+  port: ${SERVER_PORT:8443}
+  ssl:
+    enabled: true
+    # Server's identity (keystore containing server cert + private key)
+    key-store: ${MTLS_KEYSTORE_PATH:classpath:certs/server-keystore.p12}
+    key-store-password: ${MTLS_KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: ${MTLS_KEY_ALIAS:interview-platform-server}
+
+    # Trusted client certificates (truststore containing CA certs that signed client certs)
+    trust-store: ${MTLS_TRUSTSTORE_PATH:classpath:certs/client-truststore.p12}
+    trust-store-password: ${MTLS_TRUSTSTORE_PASSWORD:changeit}
+    trust-store-type: PKCS12
+
+    # Client authentication mode:
+    # - "need": Reject connections without valid client certificate (strict mTLS)
+    # - "want": Request client cert but allow connections without one (optional mTLS)
+    client-auth: ${MTLS_CLIENT_AUTH:need}
+
+    # TLS 1.2+ only (disable older insecure protocols)
+    enabled-protocols: TLSv1.2,TLSv1.3
+
+    # Strong cipher suites only (forward secrecy + AEAD)
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+
+# mTLS-specific application properties
+app:
+  mtls:
+    enabled: true
+    # How to extract identity from client certificate
+    # Options: CN (Common Name), SAN_DNS (Subject Alternative Name - DNS), SAN_EMAIL, SERIAL
+    identity-extraction: ${MTLS_IDENTITY_EXTRACTION:CN}
+    # Allowed CN patterns (regex) for client certificates
+    # Empty = allow any valid certificate signed by a trusted CA
+    allowed-cn-patterns: ${MTLS_ALLOWED_CN_PATTERNS:}
+    # Allowed Organization (O) values in client certificate subject
+    allowed-organizations: ${MTLS_ALLOWED_ORGANIZATIONS:}
+    # Enable Certificate Revocation List (CRL) checking
+    crl-enabled: ${MTLS_CRL_ENABLED:false}
+    crl-url: ${MTLS_CRL_URL:}
+    # Enable OCSP (Online Certificate Status Protocol) checking
+    ocsp-enabled: ${MTLS_OCSP_ENABLED:false}
+    # Map certificate CN/SAN to application roles
+    certificate-role-mapping:
+      enabled: ${MTLS_ROLE_MAPPING_ENABLED:false}
+    # Endpoints that bypass mTLS (still require one-way TLS)
+    # Useful for health checks, metrics, etc.
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+
+# Override OAuth2 redirect URIs to use HTTPS (mTLS always requires HTTPS)
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/google"
+          github:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/github"
+          microsoft:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/microsoft"
+          okta:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/okta"
+          keycloak:
+            redirect-uri: "${OAUTH2_BASE_URL:https://localhost:8443}/login/oauth2/code/keycloak"
+
+# CORS - HTTPS only when mTLS is active
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://localhost:3000,https://localhost:5173}
+
+logging:
+  level:
+    org.apache.tomcat.util.net: DEBUG
+    org.springframework.security.web.authentication.preauth: DEBUG
+    com.interview_platform_backend.interview_platform_backend.security.mtls: DEBUG

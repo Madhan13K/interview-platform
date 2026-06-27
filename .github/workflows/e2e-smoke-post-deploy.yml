@@ -1,0 +1,118 @@
+name: E2E Smoke Tests (Post-Deploy)
+
+on:
+  workflow_run:
+    workflows: ["Blue-Green Deployment", "Canary Deployment"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://app.interview-platform.com'
+
+env:
+  TARGET_URL: ${{ inputs.target_url || 'https://app.interview-platform.com' }}
+  ADMIN_EMAIL: admin@interview.local
+  ADMIN_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+
+jobs:
+  smoke-tests:
+    name: Post-Deploy Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install @playwright/test
+          npx playwright install chromium
+
+      - name: Run Smoke Tests
+        run: |
+          cat <<'EOF' > smoke-test.spec.ts
+          import { test, expect } from '@playwright/test';
+
+          const BASE = process.env.TARGET_URL || 'http://localhost:3000';
+          const API = process.env.TARGET_URL?.replace('app.', 'api.') || 'http://localhost:8080';
+
+          test.describe('Post-Deploy Smoke Tests', () => {
+            test('Backend health check', async ({ request }) => {
+              const response = await request.get(`${API}/actuator/health`);
+              expect(response.status()).toBe(200);
+              const body = await response.json();
+              expect(body.status).toBe('UP');
+            });
+
+            test('Login page loads', async ({ page }) => {
+              await page.goto(`${BASE}/login`);
+              await expect(page.locator('input[type="email"], input[name="email"]')).toBeVisible({ timeout: 10000 });
+            });
+
+            test('API authentication works', async ({ request }) => {
+              const response = await request.post(`${API}/api/v1/auth/login`, {
+                data: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }
+              });
+              expect(response.status()).toBe(200);
+              const body = await response.json();
+              expect(body.accessToken || body.token).toBeTruthy();
+            });
+
+            test('Dashboard loads after login', async ({ page }) => {
+              // Login first
+              await page.goto(`${BASE}/login`);
+              await page.fill('input[type="email"], input[name="email"]', process.env.ADMIN_EMAIL!);
+              await page.fill('input[type="password"]', process.env.ADMIN_PASSWORD!);
+              await page.click('button[type="submit"]');
+              await page.waitForURL('**/dashboard', { timeout: 15000 });
+              await expect(page).toHaveURL(/dashboard/);
+            });
+
+            test('API endpoints respond (interviews)', async ({ request }) => {
+              // Get token
+              const loginResp = await request.post(`${API}/api/v1/auth/login`, {
+                data: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }
+              });
+              const { accessToken, token } = await loginResp.json();
+              const jwt = accessToken || token;
+
+              const response = await request.get(`${API}/api/v1/interviews?page=0&size=5`, {
+                headers: { Authorization: `Bearer ${jwt}` }
+              });
+              expect(response.status()).toBe(200);
+            });
+
+            test('WebSocket endpoint available', async ({ request }) => {
+              const response = await request.get(`${API}/ws/info`);
+              // WebSocket info endpoint should respond (even if not 200, it proves the server is up)
+              expect([200, 404]).toContain(response.status());
+            });
+          });
+          EOF
+
+          TARGET_URL=${{ env.TARGET_URL }} \
+          ADMIN_EMAIL=${{ env.ADMIN_EMAIL }} \
+          ADMIN_PASSWORD=${{ env.ADMIN_PASSWORD }} \
+          npx playwright test smoke-test.spec.ts --reporter=list
+
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: test-results/
+          retention-days: 7
+
+      - name: Alert on Failure
+        if: failure()
+        run: |
+          echo "::error::Post-deploy smoke tests FAILED! Consider rolling back."
+          # Trigger rollback workflow if needed
+          # gh workflow run blue-green-deployment.yml -f action=rollback

@@ -1,5 +1,6 @@
 import "./globals.css";
 import Providers from "./providers";
+import SkipNavigation from "@/components/a11y/SkipNavigation";
 
 export const metadata = {
   title: "InterviewAI - AI-Powered Interview Preparation",
@@ -14,8 +15,11 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <meta name="theme-color" content="#4f46e5" />
       </head>
       <body className="min-h-screen antialiased">
+        <SkipNavigation />
         <Providers>
-          {children}
+          <main id="main-content" role="main" tabIndex={-1}>
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

@@ -1,27 +1,46 @@
 import api from "@/lib/axios";
-import { SEARCH_ENDPOINTS } from "@/lib/api-endpoints";
 
-export interface SearchResult {
-  id: string;
-  type: "INTERVIEW" | "USER" | "JOB_POSITION" | "QUESTION" | "DOCUMENT" | "TEAM";
-  title: string;
-  description?: string;
-  url?: string;
-  createdAt?: string;
-}
-
-export interface SearchResponse {
-  results: SearchResult[];
+export interface SearchResult<T> {
+  content: T[];
   totalElements: number;
+  totalPages: number;
   page: number;
   size: number;
 }
 
-export const searchService = {
-  search: async (query: string, type?: string, page = 0, size = 20): Promise<SearchResponse> => {
-    const params: Record<string, unknown> = { q: query, page, size };
-    if (type) params.type = type;
-    const res = await api.get(SEARCH_ENDPOINTS.search, { params });
-    return res.data;
-  },
+export interface InterviewSearchResult {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  type: string;
+  candidate: { id: string; name: string; email: string } | null;
+  startTime: string;
+  createdAt: string;
+}
+
+export interface CandidateSearchResult {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  status: string;
+  skills: string[];
+  company: string;
+}
+
+export const searchInterviews = async (query: string, page = 0, size = 20): Promise<SearchResult<InterviewSearchResult>> => {
+  const res = await api.get("/api/v1/search/interviews", { params: { query, page, size } });
+  return res.data;
+};
+
+export const searchCandidates = async (query: string, page = 0, size = 20): Promise<SearchResult<CandidateSearchResult>> => {
+  const res = await api.get("/api/v1/search/candidates", { params: { query, page, size } });
+  return res.data;
+};
+
+export const triggerReindex = async (): Promise<string> => {
+  const res = await api.post("/api/v1/search/reindex");
+  return res.data;
 };
